@@ -94,6 +94,7 @@ export_hour: 1
 export_minute: 0
 keep_days: 28
 output_dir: export
+
 ```
 
 Configuration options:
@@ -104,6 +105,7 @@ Configuration options:
 | `export_minute` | Minute when the daily export runs           | `0`      |
 | `keep_days`     | Number of days to keep exported files       | `28`     |
 | `output_dir`    | Directory below `/share` for exported files | `export` |
+| `output_format` | which output format to use                  | `parquet`|
 
 ---
 
