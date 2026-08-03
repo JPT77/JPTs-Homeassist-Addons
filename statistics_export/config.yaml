@@ -4,7 +4,7 @@ slug: statistics_export
 description: Export Home Assistant statistics to parquet
 url: "https://github.com/JPT77/JPTs-Homeassist-Addons/
 documentation: "https://github.com/JPT77/JPTs-Homeassist-Addons/blob/main/statistics_export/README.md"
-#changelog: "https://github.com/JPT77/JPTs-Homeassist-Addons/blob/main/statistics_export/CHANGELOG.md"
+changelog: "https://github.com/JPT77/JPTs-Homeassist-Addons/blob/main/statistics_export/CHANGELOG.md"
 startup: services
 boot: auto
 
