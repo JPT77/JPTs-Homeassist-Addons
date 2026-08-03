@@ -1,5 +1,5 @@
 name: JPT's Statistics Export
-version: "1.0.0"
+version: "1.0.1"
 slug: statistics_export
 description: Export Home Assistant statistics to parquet
 
@@ -19,9 +19,11 @@ options:
   export_minute: 0
   keep_days: 28
   output_dir: "export"
+  output_format: "parquet"
 
 schema:
   export_hour: int
   export_minute: int
   keep_days: int
   output_dir: str
+  output_format: list(parquet|csv|sql)
