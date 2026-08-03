@@ -30,7 +30,7 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 log("Statistics Export started")
 log(f"Output directory: {OUTPUT_DIR}")
-log(f"Schedule: every day at {EXPORT_HOUR:02d}:{EXPORT_MINUTE:02d}")
+log(f"Schedule: every day at {EXPORT_HOUR:02d}:{EXPORT_MINUTE:02d}")â
 
 
 def export_day(day):
@@ -75,13 +75,39 @@ def export_day(day):
         log("No data found")
         return
 
-    filename = OUTPUT_DIR / f"statistics_{day}.parquet"
+	format = options.get("output_format", "parquet")
 
-    df.to_parquet(
-        filename,
-        compression="zstd"
-    )
+	filename = OUTPUT_DIR / f"statistics_{day}.{format}"
 
+	if format == "parquet":
+		df.to_parquet(
+			filename,
+			compression="zstd"
+		)
+	elif format == "csv":
+		df.to_csv(
+			filename,
+			index=False
+		)
+	elif format == "sql":
+		with open(filename, "w") as f:
+			for _, row in df.iterrows():
+				f.write(
+					"INSERT INTO statistics "
+					"(start_ts, statistic_id, mean, min, max, state, sum) "
+					f"VALUES "
+					f"('{row.start_ts}', "
+					f"'{row.statistic_id}', "
+					f"{row.mean}, "
+					f"{row.min}, "
+					f"{row.max}, "
+					f"{row.state}, "
+					f"{row['sum']});\n"
+				)
+	else:
+		raise ValueError(
+			f"Unsupported format: {format}"
+		)
     log(
         f"Successfully exported {len(df)} rows to {filename}"
     )
