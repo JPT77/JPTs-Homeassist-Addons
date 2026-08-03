@@ -1,0 +1,27 @@
+name: JPT's Statistics Export
+version: "1.0.0"
+slug: statistics_export
+description: Export Home Assistant statistics to parquet
+
+startup: services
+boot: auto
+
+arch:
+  - amd64
+  - aarch64
+
+map:
+  - config:ro
+  - share:rw
+
+options:
+  export_hour: 1
+  export_minute: 0
+  keep_days: 28
+  output_dir: "export"
+
+schema:
+  export_hour: int
+  export_minute: int
+  keep_days: int
+  output_dir: str
