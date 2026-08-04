@@ -1,8 +1,8 @@
 name: JPT's Statistics Export
-version: "1.2.0"
+version: "1.2.1"
 slug: statistics_export
 description: Export Home Assistant statistics to parquet
-url: "https://github.com/JPT77/JPTs-Homeassist-Addons/
+url: "https://github.com/JPT77/JPTs-Homeassist-Addons/"
 documentation: "https://github.com/JPT77/JPTs-Homeassist-Addons/blob/main/statistics_export/README.md"
 changelog: "https://github.com/JPT77/JPTs-Homeassist-Addons/blob/main/statistics_export/CHANGELOG.md"
 startup: services
@@ -24,8 +24,8 @@ options:
   output_format: "parquet"
 
 schema:
-  export_hour: int
-  export_minute: int
-  keep_days: int
+export_hour: int(0,23)
+  export_minute: int(0,59)
+  keep_days: int(1,3650)
   output_dir: str
   output_format: list(parquet|csv|sql)
