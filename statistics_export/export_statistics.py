@@ -13,6 +13,49 @@ DB = "/config/home-assistant_v2.db"
 def log(msg):
     print(f"[{datetime.now():%Y-%m-%d %H:%M:%S}] {msg}", flush=True)
 
+def export_missing_days():
+
+    log("Checking for missing exports...")
+
+    exported = 0
+
+    conn = sqlite3.connect(DB)
+
+    row = conn.execute(
+        "SELECT MIN(start_ts), MAX(start_ts) FROM statistics_short_term"
+    ).fetchone()
+
+    conn.close()
+
+    if row[0] is None:
+        log("Database contains no statistics")
+        return
+
+    first_day = datetime.fromtimestamp(row[0]).date()
+    last_day = min(
+        datetime.fromtimestamp(row[1]).date(),
+        datetime.now().date() - timedelta(days=1)
+    )
+
+    format = options.get("output_format", "parquet")
+
+    day = first_day
+
+    while day <= last_day:
+
+        filename = OUTPUT_DIR / f"statistics_{day}.{format}"
+
+        if filename.exists():
+            day += timedelta(days=1)
+            continue
+
+        if export_day(day):
+            exported += 1
+
+        day += timedelta(days=1)
+
+    log(f"Finished. Exported {exported} missing days.")
+
 
 # HA Add-on Optionen
 with open("/data/options.json") as f:
@@ -30,8 +73,9 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 log("Statistics Export started")
 log(f"Output directory: {OUTPUT_DIR}")
-log(f"Schedule: every day at {EXPORT_HOUR:02d}:{EXPORT_MINUTE:02d}")â
+log(f"Schedule: every day at {EXPORT_HOUR:02d}:{EXPORT_MINUTE:02d}")
 
+export_missing_days()
 
 def export_day(day):
 
@@ -73,7 +117,7 @@ def export_day(day):
 
     if df.empty:
         log("No data found")
-        return
+        return False
 
 	format = options.get("output_format", "parquet")
 
@@ -105,12 +149,10 @@ def export_day(day):
 					f"{row['sum']});\n"
 				)
 	else:
-		raise ValueError(
-			f"Unsupported format: {format}"
-		)
-    log(
-        f"Successfully exported {len(df)} rows to {filename}"
-    )
+		raise ValueError(f"Unsupported format: {format}")
+
+    log(f"Successfully exported {len(df)} rows to {filename}")
+    return True
 
 
 def cleanup():

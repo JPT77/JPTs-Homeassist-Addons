@@ -1,15 +1,19 @@
 # Changelog
 
-## 1.1.0
+## 1.3.0
 
-### Added
+* directly export into the format required for our database
+
+## 1.2.0
+
+* export all available days except already exported
+
+## 1.1.0
 
 * Added configurable export file format
 * Added documentation link in the add-on configuration
 * Added changelog link in the add-on configuration
 
 ## 1.0.0
-
-### Added
 
 * First version of the Statistics Export add-on
