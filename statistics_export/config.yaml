@@ -24,7 +24,7 @@ options:
   output_format: "parquet"
 
 schema:
-export_hour: int(0,23)
+  export_hour: int(0,23)
   export_minute: int(0,59)
   keep_days: int(1,3650)
   output_dir: str
