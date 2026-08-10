@@ -1,8 +1,17 @@
 # Changelog
 
+## 1.3.1
+
+* fix indentation in python script
+* fix indentation in config
+
 ## 1.3.0
 
 * directly export into the format required for our database
+
+## 1.2.1
+
+* tried to fix repo errors
 
 ## 1.2.0
 
