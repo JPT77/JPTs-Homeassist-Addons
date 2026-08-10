@@ -1,9 +1,13 @@
 # Changelog
 
+## 1.3.3
+
+* add debug messages regarding db connect
+
 ## 1.3.2
 
 * add armhf, armv7
-* use new homeassist_config
+* use new homeassist_co
 
 ## 1.3.1
 
