@@ -119,37 +119,37 @@ def export_day(day):
         log("No data found")
         return False
 
-	format = options.get("output_format", "parquet")
+    format = options.get("output_format", "parquet")
 
-	filename = OUTPUT_DIR / f"statistics_{day}.{format}"
+    filename = OUTPUT_DIR / f"statistics_{day}.{format}"
 
-	if format == "parquet":
-		df.to_parquet(
-			filename,
-			compression="zstd"
-		)
-	elif format == "csv":
-		df.to_csv(
-			filename,
-			index=False
-		)
-	elif format == "sql":
-		with open(filename, "w") as f:
-			for _, row in df.iterrows():
-				f.write(
-					"INSERT INTO statistics "
-					"(start_ts, statistic_id, mean, min, max, state, sum) "
-					f"VALUES "
-					f"('{row.start_ts}', "
-					f"'{row.statistic_id}', "
-					f"{row.mean}, "
-					f"{row.min}, "
-					f"{row.max}, "
-					f"{row.state}, "
-					f"{row['sum']});\n"
-				)
-	else:
-		raise ValueError(f"Unsupported format: {format}")
+    if format == "parquet":
+        df.to_parquet(
+            filename,
+            compression="zstd"
+        )
+    elif format == "csv":
+        df.to_csv(
+            filename,
+            index=False
+        )
+    elif format == "sql":
+        with open(filename, "w") as f:
+            for _, row in df.iterrows():
+                f.write(
+                    "INSERT INTO statistics "
+                    "(start_ts, statistic_id, mean, min, max, state, sum) "
+                    f"VALUES "
+                    f"('{row.start_ts}', "
+                    f"'{row.statistic_id}', "
+                    f"{row.mean}, "
+                    f"{row.min}, "
+                    f"{row.max}, "
+                    f"{row.state}, "
+                    f"{row['sum']});\n"
+                )
+    else:
+        raise ValueError(f"Unsupported format: {format}")
 
     log(f"Successfully exported {len(df)} rows to {filename}")
     return True
