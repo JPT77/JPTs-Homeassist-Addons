@@ -103,8 +103,6 @@ log("Statistics Export started")
 log(f"Output directory: {OUTPUT_DIR}")
 log(f"Schedule: every day at {EXPORT_HOUR:02d}:{EXPORT_MINUTE:02d}")
 
-export_missing_days()
-
 def export_day(day):
 
     log(f"Starting export for {day}")
@@ -181,6 +179,8 @@ def export_day(day):
 
     log(f"Successfully exported {len(df)} rows to {filename}")
     return True
+
+export_missing_days()
 
 
 def cleanup():

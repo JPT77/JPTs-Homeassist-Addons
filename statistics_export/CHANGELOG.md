@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.7
+
+* fix order of function definitins in python
+
 ## 1.3.6
 
 * changed mounts again
