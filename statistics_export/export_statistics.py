@@ -17,6 +17,15 @@ log(f"Database exists: {os.path.exists(DB)}")
 log(f"Database readable: {os.access(DB, os.R_OK)}")
 log(f"Database writable: {os.access(DB, os.W_OK)}")
 
+log(f"Root directories: {os.listdir('/')}")
+log(f"Config exists: {os.path.exists('/config')}")
+log(f"Data exists: {os.path.exists('/data')}")
+log(f"Share exists: {os.path.exists('/share')}")
+
+for root, dirs, files in os.walk("/"):
+    if "home-assistant_v2.db" in files:
+        log(f"FOUND DATABASE: {os.path.join(root, 'home-assistant_v2.db')}")
+
 def export_missing_days():
 
     log("Checking for missing exports...")

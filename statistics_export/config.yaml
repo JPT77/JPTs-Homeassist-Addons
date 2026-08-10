@@ -1,5 +1,5 @@
 name: JPT's Statistics Export
-version: "1.3.4"
+version: "1.3.5"
 slug: statistics_export
 description: Export Home Assistant statistics to parquet
 url: "https://github.com/JPT77/JPTs-Homeassist-Addons/"

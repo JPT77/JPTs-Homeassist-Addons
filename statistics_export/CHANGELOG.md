@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.5
+
+ * more logging
+
 ## 1.3.4
 
 * fix debug messages
