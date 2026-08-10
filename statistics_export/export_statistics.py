@@ -7,7 +7,7 @@ import json
 import os
 
 
-DB = "/config/home-assistant_v2.db"
+DB = "/homeassistant/home-assistant_v2.db"
 
 def log(msg):
     print(f"[{datetime.now():%Y-%m-%d %H:%M:%S}] {msg}", flush=True)
@@ -25,6 +25,21 @@ log(f"Share exists: {os.path.exists('/share')}")
 for root, dirs, files in os.walk("/"):
     if "home-assistant_v2.db" in files:
         log(f"FOUND DATABASE: {os.path.join(root, 'home-assistant_v2.db')}")
+
+log("=== MOUNTS ===")
+
+with open("/proc/mounts", "r") as f:
+    for line in f:
+        log(line.strip())
+
+log("=== DIRECTORIES ===")
+
+for path in ["/config", "/homeassistant", "/share", "/data"]:
+    log(
+        f"{path}: "
+        f"exists={os.path.exists(path)}, "
+        f"readable={os.access(path, os.R_OK)}"
+    )
 
 def export_missing_days():
 
