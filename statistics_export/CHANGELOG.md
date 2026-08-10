@@ -2,12 +2,12 @@
 
 ## 1.3.6
 
- * changed mounts again
- * even more logging
+* changed mounts again
+* even more logging
 
 ## 1.3.5
 
- * more logging
+* more logging
 
 ## 1.3.4
 
