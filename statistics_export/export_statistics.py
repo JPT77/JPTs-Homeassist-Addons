@@ -8,13 +8,14 @@ import os
 
 
 DB = "/config/home-assistant_v2.db"
+
+def log(msg):
+    print(f"[{datetime.now():%Y-%m-%d %H:%M:%S}] {msg}", flush=True)
+
 log(f"Database path: {DB}")
 log(f"Database exists: {os.path.exists(DB)}")
 log(f"Database readable: {os.access(DB, os.R_OK)}")
 log(f"Database writable: {os.access(DB, os.W_OK)}")
-
-def log(msg):
-    print(f"[{datetime.now():%Y-%m-%d %H:%M:%S}] {msg}", flush=True)
 
 def export_missing_days():
 

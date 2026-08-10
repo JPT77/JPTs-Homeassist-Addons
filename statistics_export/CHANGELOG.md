@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.4
+
+* fix debug messages
+
 ## 1.3.3
 
 * add debug messages regarding db connect
