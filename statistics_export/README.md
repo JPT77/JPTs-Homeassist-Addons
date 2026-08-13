@@ -210,3 +210,8 @@ and can be removed manually if no longer required.
 ## License
 
 For personal use and self-hosted Home Assistant installations.
+
+
+## Import into PostgreSQL Database 
+
+see https://github.com/JPT77/Homeassist-Archive
