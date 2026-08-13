@@ -6,34 +6,18 @@ import time
 import json
 import os
 
-
 DB = "/homeassistant/home-assistant_v2.db"
 
 def log(msg):
     print(f"[{datetime.now():%Y-%m-%d %H:%M:%S}] {msg}", flush=True)
 
-log(f"Database path: {DB}")
-log(f"Database exists: {os.path.exists(DB)}")
-log(f"Database readable: {os.access(DB, os.R_OK)}")
-log(f"Database writable: {os.access(DB, os.W_OK)}")
-
-log(f"Root directories: {os.listdir('/')}")
-log(f"Config exists: {os.path.exists('/config')}")
-log(f"Data exists: {os.path.exists('/data')}")
-log(f"Share exists: {os.path.exists('/share')}")
+log(f"Database path: {DB}, exists {os.path.exists(DB)}, readable {os.access(DB, os.R_OK)}, writeable {os.access(DB, os.W_OK)}")
 
 for root, dirs, files in os.walk("/"):
     if "home-assistant_v2.db" in files:
         log(f"FOUND DATABASE: {os.path.join(root, 'home-assistant_v2.db')}")
 
-log("=== MOUNTS ===")
-
-with open("/proc/mounts", "r") as f:
-    for line in f:
-        log(line.strip())
-
-log("=== DIRECTORIES ===")
-
+log(f"Root directories: {os.listdir('/')}")
 for path in ["/config", "/homeassistant", "/share", "/data"]:
     log(
         f"{path}: "
@@ -75,6 +59,7 @@ def export_missing_days():
 
         if filename.exists():
             day += timedelta(days=1)
+            log(f"File {filename} already exists, skipped")
             continue
 
         if export_day(day):

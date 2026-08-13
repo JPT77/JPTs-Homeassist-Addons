@@ -1,8 +1,12 @@
 # Changelog
 
+## 1.3.8
+
+* reduced logging
+
 ## 1.3.7
 
-* fix order of function definitins in python
+* fix order of function definitions in python
 
 ## 1.3.6
 
