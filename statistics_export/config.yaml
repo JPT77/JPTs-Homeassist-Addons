@@ -1,8 +1,8 @@
 name: JPT's Statistics Export
-version: "1.3.8"
+version: "1.3.9"
 slug: statistics_export
 description: Export Home Assistant statistics to parquet
-url: "https://github.com/JPT77/JPTs-Homeassist-Addons/statistics_export"
+url: "https://github.com/JPT77/JPTs-Homeassist-Addons/tree/main/statistics_export"
 documentation: "https://github.com/JPT77/JPTs-Homeassist-Addons/blob/main/statistics_export/README.md"
 changelog: "https://github.com/JPT77/JPTs-Homeassist-Addons/blob/main/statistics_export/CHANGELOG.md"
 startup: services

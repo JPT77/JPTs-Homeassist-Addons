@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.9
+
+* fixed URL
+
 ## 1.3.8
 
 * reduced logging
