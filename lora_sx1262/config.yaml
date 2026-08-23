@@ -1,0 +1,29 @@
+name: "LoRa SX1262"
+version: "0.1.0"
+slug: "lora_sx1262"
+description: "SX1262 hardware test for Raspberry Pi 5"
+url: "https://github.com/JPT77/JPTs-Homeassist-Addons"
+arch:
+  - aarch64
+
+startup: services
+boot: auto
+
+init: false
+
+devices:
+  - "/dev/spidev10.0:/dev/spidev10.0"
+  - "/dev/gpiochip10:/dev/gpiochip10"
+
+options:
+  spi_device: "/dev/spidev10.0"
+  gpio_device: "/dev/gpiochip10"
+
+schema:
+  spi_device: str
+  gpio_device: str
+
+map:
+  - type: addon_config
+    read_only: false
+    path: /config
