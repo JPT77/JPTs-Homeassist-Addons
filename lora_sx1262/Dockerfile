@@ -6,8 +6,13 @@ WORKDIR /app
 RUN apk add --no-cache \
     python3 \
     py3-pip \
-    py3-spidev \
-    py3-gpiod
+    linux-headers \
+    gcc \
+    musl-dev
+
+RUN python3 -m pip install --no-cache-dir --break-system-packages \
+    spidev \
+    gpiod
 
 COPY src /app
 COPY run.sh /run.sh
