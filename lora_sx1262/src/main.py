@@ -6,6 +6,7 @@ import time
 
 import spidev
 import gpiod
+from gpiod.line import Direction, Value
 
 
 SPI_DEVICE = os.environ.get("SPI_DEVICE", "/dev/spidev10.0")
@@ -83,18 +84,24 @@ def test_gpio() -> None:
     # Beide Leitungen sind Ausgänge des SX1262 und dürfen deshalb
     # NICHT als Ausgang vom Raspberry Pi konfiguriert werden.
 
-    busy = chip.get_line(GPIO_BUSY)
-    dio1 = chip.get_line(GPIO_DIO1)
+    with gpiod.Chip(GPIO_CHIP) as chip:
+        request = chip.request_lines(
+            consumer="lora-sx1262-test",
+            config={
+                GPIO_BUSY: gpiod.LineSettings(
+                    direction=Direction.INPUT
+                ),
+                GPIO_DIO1: gpiod.LineSettings(
+                    direction=Direction.INPUT
+                ),
+            },
+        )
 
-    busy.request(
-        consumer="lora-sx1262-test",
-        type=gpiod.LINE_REQ_DIR_IN,
-    )
+        busy = request.get_value(GPIO_BUSY)
+        dio1 = request.get_value(GPIO_DIO1)
 
-    dio1.request(
-        consumer="lora-sx1262-test",
-        type=gpiod.LINE_REQ_DIR_IN,
-    )
+        print(f"BUSY: {busy}")
+        print(f"DIO1: {dio1}")
 
     print(f"GPIO{GPIO_BUSY:02d} BUSY   : {busy.get_value()}")
     print(f"GPIO{GPIO_DIO1:02d} DIO1   : {dio1.get_value()}")
