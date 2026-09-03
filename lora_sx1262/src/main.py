@@ -12,9 +12,9 @@ SPI_DEVICE = os.environ.get("SPI_DEVICE", "/dev/spidev10.0")
 GPIO_DEVICE = os.environ.get("GPIO_DEVICE", "/dev/gpiochip10")
 
 # Raspberry Pi GPIO numbering / line offsets
-GPIO_DIO2 = 1
-GPIO_RXEN = 0
-GPIO_BUSY = 7
+#GPIO_DIO2 = 1
+GPIO_RXEN = 22
+GPIO_BUSY = 23
 GPIO_NSS = 8
 GPIO_NRST = 24
 GPIO_DIO1 = 25

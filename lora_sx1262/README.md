@@ -17,10 +17,9 @@ DX-LR30-900M22S:
 | SCK | Pin 23 / GPIO11 |
 | DIO1 | Pin 22 / GPIO25 |
 | MISO | Pin 21 / GPIO9 |
-| DIO2 | Pin 29 / GPIO5 |
-| BUSY | Pin 26 / GPIO7 |
-| RXEN | Pin 31 / GPIO6 |
-| NC | Pin 25 / GND |
+| DIO2 | -- |
+| BUSY | Pin 16 / GPIO23 |
+| RXEN | Pin 15 / GPIO22 |
 
 ## Linux devices
 
