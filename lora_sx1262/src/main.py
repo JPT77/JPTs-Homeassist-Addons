@@ -84,30 +84,23 @@ def test_gpio() -> None:
     # Beide Leitungen sind Ausgänge des SX1262 und dürfen deshalb
     # NICHT als Ausgang vom Raspberry Pi konfiguriert werden.
 
-    with gpiod.Chip(GPIO_CHIP) as chip:
-        request = chip.request_lines(
-            consumer="lora-sx1262-test",
-            config={
-                GPIO_BUSY: gpiod.LineSettings(
-                    direction=Direction.INPUT
-                ),
-                GPIO_DIO1: gpiod.LineSettings(
-                    direction=Direction.INPUT
-                ),
-            },
-        )
+    request = chip.request_lines(
+        consumer="lora-sx1262-test",
+        config={
+            GPIO_BUSY: gpiod.LineSettings(
+                direction=Direction.INPUT
+            ),
+            GPIO_DIO1: gpiod.LineSettings(
+                direction=Direction.INPUT
+            ),
+        },
+    )
 
-        busy = request.get_value(GPIO_BUSY)
-        dio1 = request.get_value(GPIO_DIO1)
+    busy = request.get_value(GPIO_BUSY)
+    dio1 = request.get_value(GPIO_DIO1)
 
-        print(f"BUSY: {busy}")
-        print(f"DIO1: {dio1}")
-
-    print(f"GPIO{GPIO_BUSY:02d} BUSY   : {busy.get_value()}")
-    print(f"GPIO{GPIO_DIO1:02d} DIO1   : {dio1.get_value()}")
-
-    dio1.release()
-    busy.release()
+    print(f"GPIO{GPIO_BUSY:02d} BUSY: {busy}")
+    print(f"GPIO{GPIO_DIO1:02d} DIO1: {dio1}")
 
     chip.close()
 
