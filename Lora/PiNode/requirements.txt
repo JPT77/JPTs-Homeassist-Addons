@@ -1,0 +1,7 @@
+LoRaRF>=1.4.0
+rpi-lgpio>=0.6
+paho-mqtt>=2.0.0
+PyYAML>=6.0
+smbus2>=0.4.3
+spidev>=3.6
+gpiod>=2.1.3

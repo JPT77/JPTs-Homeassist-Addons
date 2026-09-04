@@ -1,0 +1,128 @@
+# /etc/lora-bridge/config.yaml
+# Konfiguration für den Raspberry Pi Zero 2W (Rolle: pi_node)
+
+role: pi_node
+log_level: info          # debug | info | normal
+
+mqtt:
+  host: 127.0.0.1        # lokaler Mosquitto (auf dem Pi)
+  port: 1883
+  username: null
+  password: null
+  tls: false
+  client_id: lora-bridge-pi
+  keepalive: 60
+
+lora:
+  chip: sx1262
+  frequency_hz: 868000000
+  spreading_factor: 7
+  bandwidth_hz: 125000
+  coding_rate: 6
+  tx_power_dbm: 22
+  preamble_length: 8
+  crc_on: true
+  header_explicit: true
+  sync_word: 0x1424
+  use_tcxo: false
+  use_irq: true
+  poll_interval_ms: 20
+  pins:
+    spi_bus: 0
+    spi_cs: 0
+    gpio_chip: /dev/gpiochip0
+    reset: 24
+    busy: 23
+    dio1: 25
+    rxen: 22
+    txen: -1
+
+ack:
+  timeout_ms: 800
+  max_retries: 4
+  backoff_factor: 1.6
+
+probe:
+  tx_test: false
+  tx_test_payload: PROBE
+
+hotspot:
+  enabled: true
+  ssid: lora-bridge
+  passphrase: changeme12345
+  channel: 6
+  ip_cidr: 192.168.50.1/24
+
+# ------- Topic-Mapping LoRa TopicID <-> MQTT-Topic ---------------------
+topics:
+  - id: 1
+    mqtt_topic: "solar/battery/soc"
+    direction: bidir
+    qos: 1
+    retained: true
+  - id: 2
+    mqtt_topic: "sensors/keller/pressure"
+    direction: tx
+    qos: 0
+    retained: true
+  - id: 3
+    mqtt_topic: "sensors/keller/temperature_bmp"
+    direction: tx
+    qos: 0
+    retained: true
+  - id: 4
+    mqtt_topic: "sensors/keller/humidity"
+    direction: tx
+    qos: 0
+    retained: true
+  - id: 5
+    mqtt_topic: "sensors/keller/temperature_aht"
+    direction: tx
+    qos: 0
+    retained: true
+  - id: 6
+    mqtt_topic: "sensors/keller/wasserstand"
+    direction: tx
+    qos: 0
+    retained: true
+
+# ------- Battery-Relay (2 MQTT-WiFi Topics -> MQTT-WiFi Akku) ----------
+battery_relay:
+  enabled: true
+  sources:
+    - "home/loads/power"
+    - "solar/inverter/power"
+  target: "battery/cmd/setpoint"
+  payload_template: "{value}"
+
+# ------- Sensoren am Pi (GPIO/I²C/SPI) ---------------------------------
+# Wichtig: keine GPIOs zwischen BCM13 und BCM24 (außer die vom LoRa-Modul
+# 22/23/24/25 belegten). I²C nutzt BCM 2/3, MCP3008-CS = BCM 7.
+sensors:
+  - kind: bmp280
+    name: keller_bmp280
+    i2c_bus: 1
+    i2c_address: 0x77
+    poll_interval_s: 30
+    topic_id: 3           # temperature via LoRa an HA
+    mqtt_topic: "sensors/keller/{field}_bmp"
+    ack_req: false
+  - kind: aht20
+    name: keller_aht20
+    i2c_bus: 1
+    i2c_address: 0x38
+    poll_interval_s: 30
+    topic_id: 5
+    mqtt_topic: "sensors/keller/{field}_aht"
+    ack_req: false
+  - kind: adc_ads1115     # oder: adc_mcp3008
+    name: keller_wasserstand
+    i2c_bus: 1
+    i2c_address: 0x48
+    channel: 0
+    gain: 4.096
+    field: wasserstand
+    poll_interval_s: 60
+    topic_id: 6
+    mqtt_topic: "sensors/keller/wasserstand"
+    ack_req: true

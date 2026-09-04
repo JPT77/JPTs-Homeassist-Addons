@@ -1,0 +1,109 @@
+# Home Assistant Add-on manifest
+name: "LoRa MQTT Gateway"
+version: "0.1.0"
+slug: "lora_mqtt_gateway"
+description: "LoRa <-> MQTT Gateway (SX1262). Konfiguration von Frequenz, MQTT, Topic-Mapping, ACK-Parametern und Log-Level direkt in der HA-UI."
+url: "https://github.com/JPT77/JPTs-Homeassist-Addons"
+arch:
+  - aarch64
+startup: services
+boot: auto
+init: false
+
+services:
+  - mqtt:need
+
+devices:
+  - "/dev/spidev10.0:/dev/spidev10.0"
+  - "/dev/gpiochip10:/dev/gpiochip10"
+
+map:
+  - type: addon_config
+    read_only: false
+    path: /config
+
+options:
+  log_level: info
+  mqtt:
+    host: core-mosquitto
+    port: 1883
+    username: ""
+    password: ""
+    tls: false
+    client_id: lora-mqtt-gateway
+  lora:
+    chip: sx1262
+    frequency_hz: 868000000
+    spreading_factor: 7
+    bandwidth_hz: 125000
+    coding_rate: 6
+    tx_power_dbm: 22
+    sync_word: "0x1424"
+    use_tcxo: false
+    use_irq: true
+    pins:
+      spi_bus: 10
+      spi_cs: 0
+      spi_device: /dev/spidev10.0
+      gpio_chip: /dev/gpiochip10
+      reset: 24
+      busy: 23
+      dio1: 25
+      rxen: 22
+      txen: -1
+  ack:
+    timeout_ms: 800
+    max_retries: 4
+    backoff_factor: 1.6
+  probe:
+    tx_test: false
+    tx_test_payload: PROBE
+  topics:
+    - id: 1
+      mqtt_topic: "solar/battery/soc"
+      direction: bidir
+      qos: 1
+      retained: true
+
+schema:
+  log_level: list(debug|info|normal)
+  mqtt:
+    host: str
+    port: port
+    username: str?
+    password: password?
+    tls: bool
+    client_id: str
+  lora:
+    chip: list(sx1261|sx1262)
+    frequency_hz: int(150000000,960000000)
+    spreading_factor: int(5,12)
+    bandwidth_hz: int(7800,500000)
+    coding_rate: int(5,8)
+    tx_power_dbm: int(-9,22)
+    sync_word: str
+    use_tcxo: bool
+    use_irq: bool
+    pins:
+      spi_bus: int(0,10)
+      spi_cs: int(0,7)
+      spi_device: str
+      gpio_chip: str
+      reset: int(0,40)
+      busy: int(0,40)
+      dio1: int(0,40)
+      rxen: int(-1,40)
+      txen: int(-1,40)
+  ack:
+    timeout_ms: int(50,10000)
+    max_retries: int(0,20)
+    backoff_factor: float(1.0,5.0)
+  probe:
+    tx_test: bool
+    tx_test_payload: str
+  topics:
+    - id: int(0,255)
+      mqtt_topic: str
+      direction: list(rx|tx|bidir)
+      qos: int(0,2)
+      retained: bool
