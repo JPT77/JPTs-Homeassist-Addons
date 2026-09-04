@@ -88,7 +88,7 @@ def _check_reset_pulse(cfg: LoraConfig) -> None:
             consumer="lora-probe-reset",
             config={
                 cfg.pins.reset: gpiod.LineSettings(
-                    direction=gpiod.line.Direction.OUTPUT, output_value=1),
+                    direction=gpiod.line.Direction.OUTPUT, output_value=gpiod.line.Value.ACTIVE),
                 cfg.pins.busy: gpiod.LineSettings(
                     direction=gpiod.line.Direction.INPUT),
             },
