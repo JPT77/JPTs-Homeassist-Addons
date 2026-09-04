@@ -8,7 +8,7 @@ echo "========================================="
 
 echo "=== GPIO Python Diagnose ==="
 python3 -m pip show -f rpi-lgpio || true
-python3 -c 'import importlib.util; print("RPi:", importlib.util.find_spec("RPi")); print("RPi.GPIO:", importlib.util.find_spec("RPi.GPIO"))'
+python3 -c 'import importlib.util; print("RPi:", importlib.util.find_spec("RPi")); print("RPi.GPIO:", importlib.util.find_spec("RPi.GPIO"))' || true
 echo "============================"
 
 # HA-Optionen liegen in /data/options.json — config_loader.py liest das

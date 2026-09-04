@@ -1,5 +1,4 @@
-ARG BUILD_FROM=ghcr.io/home-assistant/aarch64-base:3.22
-FROM ghcr.io/home-assistant/aarch64-base-python:3.13-alpine3.22
+FROM ghcr.io/home-assistant/aarch64-base:3.22
 
 WORKDIR /app
 
@@ -15,12 +14,12 @@ RUN apk add --no-cache \
       musl-dev \
       swig
 
-RUN python3 -m pip install --no-cache-dir adafruit-lgpio
+RUN python3 -m pip install --no-cache-dir adafruit-lgpio rpi-lgpio
 
 RUN python3 -c "import lgpio; print('lgpio OK:', lgpio.__file__)"
 
 RUN python3 -m pip show rpi-lgpio RPi.GPIO LoRaRF || true
-#       rpi-lgpio
+
 RUN python3 -m pip install --no-cache-dir --break-system-packages \
       paho-mqtt \
       PyYAML \
