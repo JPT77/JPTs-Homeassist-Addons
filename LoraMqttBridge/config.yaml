@@ -1,6 +1,6 @@
 # Home Assistant Add-on manifest
 name: "LoRa MQTT Gateway"
-version: "0.1.28"
+version: "0.1.29"
 slug: "lora_mqtt_gateway"
 description: "LoRa <-> MQTT Gateway (SX1262). Konfiguration von Frequenz, MQTT, Topic-Mapping, ACK-Parametern und Log-Level direkt in der HA-UI."
 url: "https://github.com/JPT77/JPTs-Homeassist-Addons"
