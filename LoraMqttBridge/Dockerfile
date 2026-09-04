@@ -12,7 +12,13 @@ RUN apk add --no-cache \
       lgpio \
       gcc \
       musl-dev \
-      libgpiod
+      make \
+      git
+
+RUN git clone --depth 1 https://github.com/joan2937/lg.git /tmp/lg \
+    && cd /tmp/lg \
+    && make \
+    && make install
 
 RUN python3 -m pip install --no-cache-dir --break-system-packages \
       rpi-lgpio \
@@ -21,6 +27,9 @@ RUN python3 -m pip install --no-cache-dir --break-system-packages \
       PyYAML \
       gpiod \
       spidev
+
+RUN python3 -m pip install --no-cache-dir --break-system-packages \
+      --no-deps LoRaRF
 
 COPY entry.py /app/entry.py
 COPY config.yaml /app/config.yaml
