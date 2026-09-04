@@ -17,8 +17,11 @@ RUN apk add --no-cache \
       make \
       git
 
-RUN python3 -m pip install --no-cache-dir lgpio
-RUN python3 -c "import lgpio; print(lgpio.__file__)"
+RUN python3 -m pip install --no-cache-dir \
+    "lgpio==0.2.2.0" \
+    --find-links https://github.com/adafruit/lgpio-python-wheels/raw/main/wheels/
+
+RUN python3 -c "import lgpio; print(lgpio.__file__); print(lgpio.version)"
 
 # add  a dummy ldconfig that does nothing.
 RUN printf '#!/bin/sh\nexit 0\n' > /usr/local/bin/ldconfig \
