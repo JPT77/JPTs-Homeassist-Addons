@@ -98,6 +98,7 @@ def _check_reset_pulse(cfg: LoraConfig) -> None:
         req.set_value(cfg.pins.reset, 1)
         time.sleep(0.05)
         _ = req.get_value(cfg.pins.busy)
+        log.info("BUSY after NRST pulse: %s", busy)
         req.release()
     except ImportError:
         import RPi.GPIO as GPIO
