@@ -11,10 +11,10 @@ import sys
 
 sys.path.insert(0, "/app")
 
-from lora.config_loader import load  # noqa: E402
-from lora.hw_probe import probe  # noqa: E402
-from lora.logger import configure  # noqa: E402
-from lora.role_ha_gateway import run  # noqa: E402
+from Lora.config_loader import load  # noqa: E402
+from Lora.hw_probe import probe  # noqa: E402
+from Lora.logger import configure  # noqa: E402
+from Lora.role_ha_gateway import run  # noqa: E402
 
 
 def main() -> int:
