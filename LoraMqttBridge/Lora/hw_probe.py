@@ -39,7 +39,7 @@ def _step(idx: int, title: str, fn, *args) -> None:
         fn(*args)
         log.info("Probe %2d: OK", idx)
     except Exception as exc:
-        log.error("Probe %2d: FAILED — %s", idx, exc)
+        log.exception("Probe %2d: FAILED — %s", idx, exc)
         raise
 
 
