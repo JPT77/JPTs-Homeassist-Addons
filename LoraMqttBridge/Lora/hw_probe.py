@@ -18,9 +18,9 @@ log = logging.getLogger(__name__)
 
 def probe(lora_cfg: LoraConfig, probe_cfg: ProbeConfig) -> None:
     """Führt die Hardware-Diagnose in 10 Schritten aus."""
-    _step(1, "SPI-Device öffnen", _check_spi, lora_cfg)
-    _step(2, "GPIO-Chip öffnen", _check_gpio_chip, lora_cfg)
-    _step(3, "BUSY-Pin lesbar", _check_busy_readable, lora_cfg)
+    _step(1, f"SPI-Device {lora_cfg.pins.spi_device} öffnen", _check_spi, lora_cfg)
+    _step(2, f"GPIO-Chip {lora_cfg.pins.gpio_chip} öffnen", _check_gpio_chip, lora_cfg)
+    _step(3, f"BUSY-Pin {lora_cfg.pins.busy} lesbar", _check_busy_readable, lora_cfg)
     _step(4, "NRST-Toggle → BUSY reagiert", _check_reset_pulse, lora_cfg)
     _step(5, "SX126x GetStatus per SPI", _check_get_status, lora_cfg)
     _step(6, "SX126x GetDeviceErrors == 0", _check_no_errors, lora_cfg)
@@ -93,22 +93,38 @@ def _check_reset_pulse(cfg: LoraConfig) -> None:
                     direction=gpiod.line.Direction.INPUT),
             },
         )
-        req.set_value(cfg.pins.reset, 0)
-        time.sleep(0.005)
-        req.set_value(cfg.pins.reset, 1)
-        time.sleep(0.05)
-        _ = req.get_value(cfg.pins.busy)
-        log.info("BUSY after NRST pulse: %s", busy)
-        req.release()
+
+        try:
+            req.set_value(cfg.pins.reset, 0)
+            time.sleep(0.005)
+
+            req.set_value(cfg.pins.reset, 1)
+            time.sleep(0.05)
+
+            busy = req.get_value(cfg.pins.busy)
+            log.info("BUSY after NRST pulse: %s", busy)
+
+        finally:
+            req.release()
+
     except ImportError:
         import RPi.GPIO as GPIO
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(cfg.pins.reset, GPIO.OUT, initial=GPIO.HIGH)
-        GPIO.output(cfg.pins.reset, GPIO.LOW)
-        time.sleep(0.005)
-        GPIO.output(cfg.pins.reset, GPIO.HIGH)
-        time.sleep(0.05)
+        GPIO.setup(cfg.pins.busy, GPIO.IN)
 
+        try:
+            GPIO.output(cfg.pins.reset, GPIO.LOW)
+            time.sleep(0.005)
+
+            GPIO.output(cfg.pins.reset, GPIO.HIGH)
+            time.sleep(0.05)
+
+            busy = GPIO.input(cfg.pins.busy)
+            log.info("BUSY after NRST pulse: %s", busy)
+
+        finally:
+            GPIO.cleanup()
 
 # Die folgenden Schritte benutzen ein temporäres LoRaRF-Handle. Nach den Checks
 # wird es geschlossen — der echte Radio-Handle wird in lora_driver.py aufgebaut.
