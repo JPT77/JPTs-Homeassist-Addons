@@ -2,9 +2,9 @@
 
 set -e
 
-echo "========================================"
-echo " LoRa MQTT Gateway (Home Assistant Add-on)"
-echo "========================================"
+echo "========================================="
+echo "LoRa MQTT Gateway (Home Assistant Add-on)"
+echo "========================================="
 
 # HA-Optionen liegen in /data/options.json — config_loader.py liest das
 # automatisch. Wir setzen zusätzlich die Rolle fest.
