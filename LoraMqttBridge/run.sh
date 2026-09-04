@@ -6,8 +6,8 @@ echo "========================================="
 echo "LoRa MQTT Gateway (Home Assistant Add-on)"
 echo "========================================="
 
-python -m pip show rpi-lgpio
-python -m pip show RPi.GPIO
+#python -m pip show rpi-lgpio
+#python -m pip show RPi.GPIO
 
 # HA-Optionen liegen in /data/options.json — config_loader.py liest das
 # automatisch. Wir setzen zusätzlich die Rolle fest.
