@@ -8,7 +8,31 @@ echo "========================================="
 
 echo "=== GPIO Python Diagnose ==="
 python3 -m pip show -f rpi-lgpio || true
-python3 -c 'import importlib.util; print("RPi:", importlib.util.find_spec("RPi")); print("RPi.GPIO:", importlib.util.find_spec("RPi.GPIO"))' || true
+python3 -c '
+import importlib.util;
+print("RPi:", importlib.util.find_spec("RPi"));
+print("RPi.GPIO:", importlib.util.find_spec("RPi.GPIO"))
+' || true
+
+python3 - <<'PY'
+import sys
+import RPi.GPIO as GPIO
+import lgpio
+
+print("Python:", sys.version)
+print("RPi.GPIO:", GPIO.__file__)
+print("GPIO VERSION:", getattr(GPIO, "VERSION", "?"))
+print("lgpio:", lgpio.__file__)
+print("lgpio version:", getattr(lgpio, "VERSION", "?"))
+
+print()
+print("TEST: GPIO import OK")
+PY
+
+python3 -c "import lgpio; print(lgpio.__file__)" ||true
+python3 -c "import RPi.GPIO as GPIO; print(GPIO.__file__); print(GPIO.VERSION)" ||true
+python3 -c "from LoRaRF import SX126x; print('LoRaRF + RPi.GPIO import OK')"||true
+
 echo "============================"
 
 # HA-Optionen liegen in /data/options.json — config_loader.py liest das
