@@ -7,33 +7,16 @@ echo "LoRa MQTT Gateway (Home Assistant Add-on)"
 echo "========================================="
 
 echo "=== GPIO Python Diagnose ==="
-id
 
 python3 - <<'PY'
 import os
-try:
-    fd = os.open("/dev/gpiochip0", os.O_RDWR)
-    print("OS OPEN OK:", fd)
-    os.close(fd)
-except Exception as e:
-    print("OS OPEN FAILED:", repr(e))
+
+fd = os.open("/dev/gpiochip0", os.O_RDWR)
+print("OS OPEN OK:", fd)
+os.close(fd)
 PY
 
-python3 - <<'PY'
-import lgpio
-try:
-    h = lgpio.gpiochip_open(0)
-    print("LGPIO OPEN OK:", h)
-    lgpio.gpiochip_close(h)
-except Exception as e:
-    print("LGPIO OPEN FAILED:", repr(e))
-PY
-
-for x in /sys/class/gpio/gpiochip*; do
-    echo "=== $x ==="
-    cat "$x/label" 2>/dev/null
-    cat "$x/ngpio" 2>/dev/null
-done
+python3 -c "from LoRaRF import SX126x; print('LoRaRF + GPIO OK')"
 
 gpiodetect
 
