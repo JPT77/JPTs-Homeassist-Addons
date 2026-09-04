@@ -2,10 +2,7 @@ FROM ghcr.io/home-assistant/aarch64-base:3.22
 
 WORKDIR /app
 
-RUN python3 --version
-
-# python3-dev swig make git
-
+# python3-dev make git
 RUN apk add --no-cache \
       python3 \
       py3-pip \
