@@ -18,10 +18,11 @@ RUN python3 -m pip install --no-cache-dir --break-system-packages \
       gpiod \
       spidev
 
-# Der geteilte Code liegt eine Ebene über dem Addon; wir kopieren ihn ins Image
-COPY src /app/src
-COPY lora_mqtt_bridge /app/lora_mqtt_bridge
+COPY entry.py /app/entry.py
+COPY config.yaml /app/config.yaml
+COPY LoraMqttBridge /app/LoraMqttBridge
 COPY run.sh /run.sh
+
 RUN chmod a+x /run.sh
 
 CMD ["/run.sh"]

@@ -26,4 +26,4 @@ fi
 # In den Add-on-Optionen ist "role" nicht enthalten (fest ha_gateway).
 # config_loader.py mergt /data/options.json direkt in Config, wir überschreiben
 # die Rolle über Env.
-python3 /app/src/entry.py
+python3 /app/entry.p
