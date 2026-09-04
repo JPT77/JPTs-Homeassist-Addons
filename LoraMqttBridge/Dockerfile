@@ -9,6 +9,7 @@ RUN apk add --no-cache \
       py3-pip \
       linux-headers \
       swig \
+      lgpio \
       gcc \
       musl-dev \
       libgpiod
