@@ -95,10 +95,10 @@ def _check_reset_pulse(cfg: LoraConfig) -> None:
         )
 
         try:
-            req.set_value(cfg.pins.reset, 0)
+            req.set_value(cfg.pins.reset, gpiod.line.Value.INACTIVE)
             time.sleep(0.005)
 
-            req.set_value(cfg.pins.reset, 1)
+            req.set_value(cfg.pins.reset, gpiod.line.Value.ACTIVE)
             time.sleep(0.05)
 
             busy = req.get_value(cfg.pins.busy)
