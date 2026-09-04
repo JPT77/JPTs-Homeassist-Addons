@@ -18,8 +18,6 @@ PY
 
 python3 -c "from LoRaRF import SX126x; print('LoRaRF + GPIO OK')"
 
-gpiodetect
-
 python3 -c "import lgpio; print(lgpio.__file__)" ||true
 python3 -c "import RPi.GPIO as GPIO; print(GPIO.__file__); print(GPIO.VERSION)" ||true
 python3 -c "from LoRaRF import SX126x; print('LoRaRF + RPi.GPIO import OK')"||true
