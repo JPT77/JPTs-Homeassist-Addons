@@ -150,6 +150,8 @@ def _check_get_status(cfg: LoraConfig) -> None:
     print("txen    =", cfg.pins.txen)
     print("rxen    =", cfg.pins.rxen)
 
+    lora = _tmp_radio(cfg)
+
     result = lora.begin(
         cfg.pins.spi_bus,
         cfg.pins.spi_cs,
@@ -161,7 +163,7 @@ def _check_get_status(cfg: LoraConfig) -> None:
     )
 
     print("lora.begin() =>", repr(result))
-
+#-----------
     lora = _tmp_radio(cfg)
     try:
         st = lora.getStatus()
