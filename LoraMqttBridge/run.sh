@@ -7,34 +7,35 @@ echo "LoRa MQTT Gateway (Home Assistant Add-on)"
 echo "========================================="
 
 echo "=== GPIO Python Diagnose ==="
-python3 -m pip show -f rpi-lgpio || true
-python3 -c '
-import importlib.util;
-print("RPi:", importlib.util.find_spec("RPi"));
-print("RPi.GPIO:", importlib.util.find_spec("RPi.GPIO"))
-' || true
+id
 
 python3 - <<'PY'
-import RPi.GPIO as GPIO
-import RPi.GPIO as gpio
-
-print("revision:", GPIO.RPI_REVISION)
-
-# rpi-lgpio intern verwendeten Chip ermitteln
-print("gpiochip:", gpio._get_gpiochip_num())
+import os
+try:
+    fd = os.open("/dev/gpiochip0", os.O_RDWR)
+    print("OS OPEN OK:", fd)
+    os.close(fd)
+except Exception as e:
+    print("OS OPEN FAILED:", repr(e))
 PY
 
 python3 - <<'PY'
 import lgpio
-
-for chip in range(14):
-    try:
-        h = lgpio.gpiochip_open(chip)
-        print(f"gpiochip{chip}: OK -> handle {h}")
-        lgpio.gpiochip_close(h)
-    except Exception as e:
-        print(f"gpiochip{chip}: {e}")
+try:
+    h = lgpio.gpiochip_open(0)
+    print("LGPIO OPEN OK:", h)
+    lgpio.gpiochip_close(h)
+except Exception as e:
+    print("LGPIO OPEN FAILED:", repr(e))
 PY
+
+for x in /sys/class/gpio/gpiochip*; do
+    echo "=== $x ==="
+    cat "$x/label" 2>/dev/null
+    cat "$x/ngpio" 2>/dev/null
+done
+
+gpiodetect
 
 python3 -c "import lgpio; print(lgpio.__file__)" ||true
 python3 -c "import RPi.GPIO as GPIO; print(GPIO.__file__); print(GPIO.VERSION)" ||true
