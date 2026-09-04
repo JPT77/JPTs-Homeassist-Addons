@@ -5,6 +5,7 @@ WORKDIR /app
 
 RUN python3 --version
 
+
 RUN apk add --no-cache \
       python3 \
       python3-dev \
@@ -16,10 +17,18 @@ RUN apk add --no-cache \
       make \
       git
 
-RUN git clone --depth 1 https://github.com/joan2937/lg.git /tmp/lg \
+RUN python3 -m pip install --no-cache-dir lgpio
+RUN python3 -c "import lgpio; print(lgpio.__file__)"
+
+# add  a dummy ldconfig that does nothing.
+RUN printf '#!/bin/sh\nexit 0\n' > /usr/local/bin/ldconfig \
+    && chmod +x /usr/local/bin/ldconfig \
+    && git clone --depth 1 https://github.com/joan2937/lg.git /tmp/lg \
     && cd /tmp/lg \
     && make \
-    && make install
+    && make install \
+    && rm -rf /tmp/lg \
+    && rm -f /usr/local/bin/ldconfig
 
 RUN python3 -m pip install --no-cache-dir --break-system-packages \
       rpi-lgpio \
