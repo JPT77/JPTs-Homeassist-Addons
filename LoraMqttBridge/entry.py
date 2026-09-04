@@ -11,10 +11,10 @@ import sys
 
 sys.path.insert(0, "/app")
 
-from lora_mqtt_bridge.config_loader import load  # noqa: E402
-from lora_mqtt_bridge.hw_probe import probe  # noqa: E402
-from lora_mqtt_bridge.logger import configure  # noqa: E402
-from lora_mqtt_bridge.role_ha_gateway import run  # noqa: E402
+from lora.config_loader import load  # noqa: E402
+from lora.hw_probe import probe  # noqa: E402
+from lora.logger import configure  # noqa: E402
+from lora.role_ha_gateway import run  # noqa: E402
 
 
 def main() -> int:

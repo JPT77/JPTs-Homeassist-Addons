@@ -20,7 +20,7 @@ RUN python3 -m pip install --no-cache-dir --break-system-packages \
 
 COPY entry.py /app/entry.py
 COPY config.yaml /app/config.yaml
-COPY LoraMqttBridge /app/LoraMqttBridge
+COPY Lora /app/Lora
 COPY run.sh /run.sh
 
 RUN chmod a+x /run.sh
