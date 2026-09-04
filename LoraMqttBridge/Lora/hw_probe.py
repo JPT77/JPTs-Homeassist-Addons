@@ -146,6 +146,25 @@ def _tmp_radio(cfg: LoraConfig):
 
 
 def _check_get_status(cfg: LoraConfig) -> None:
+
+    import sys
+    import importlib.util
+    import importlib.metadata
+
+    print("Python:", sys.executable)
+    print("sys.path:", sys.path)
+
+    print("RPi spec:", importlib.util.find_spec("RPi"))
+    print("RPi.GPIO spec:", importlib.util.find_spec("RPi.GPIO"))
+
+    for name in ("rpi-lgpio", "RPi.GPIO", "LoRaRF", "lgpio"):
+        try:
+            d = importlib.metadata.distribution(name)
+            print(name, "=>", d.version, d.locate_file(""))
+        except importlib.metadata.PackageNotFoundError:
+            print(name, "=> NOT INSTALLED")
+
+
     lora = _tmp_radio(cfg)
     try:
         st = lora.getStatus()
