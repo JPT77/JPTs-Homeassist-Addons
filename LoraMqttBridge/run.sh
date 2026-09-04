@@ -15,18 +15,25 @@ print("RPi.GPIO:", importlib.util.find_spec("RPi.GPIO"))
 ' || true
 
 python3 - <<'PY'
-import sys
 import RPi.GPIO as GPIO
+import RPi.GPIO as gpio
+
+print("revision:", GPIO.RPI_REVISION)
+
+# rpi-lgpio intern verwendeten Chip ermitteln
+print("gpiochip:", gpio._get_gpiochip_num())
+PY
+
+python3 - <<'PY'
 import lgpio
 
-print("Python:", sys.version)
-print("RPi.GPIO:", GPIO.__file__)
-print("GPIO VERSION:", getattr(GPIO, "VERSION", "?"))
-print("lgpio:", lgpio.__file__)
-print("lgpio version:", getattr(lgpio, "VERSION", "?"))
-
-print()
-print("TEST: GPIO import OK")
+for chip in range(14):
+    try:
+        h = lgpio.gpiochip_open(chip)
+        print(f"gpiochip{chip}: OK -> handle {h}")
+        lgpio.gpiochip_close(h)
+    except Exception as e:
+        print(f"gpiochip{chip}: {e}")
 PY
 
 python3 -c "import lgpio; print(lgpio.__file__)" ||true

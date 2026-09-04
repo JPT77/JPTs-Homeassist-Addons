@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.0
+
+* automaticall find database
+* have database option
+
 ## 1.3.9
 
 * fixed URL
@@ -32,7 +37,7 @@
 ## 1.3.2
 
 * add armhf, armv7
-* use new homeassist_co
+* use new homeassist_config
 
 ## 1.3.1
 
