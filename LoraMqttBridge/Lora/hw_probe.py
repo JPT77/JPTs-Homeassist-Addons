@@ -131,11 +131,6 @@ def _check_reset_pulse(cfg: LoraConfig) -> None:
 def _tmp_radio(cfg: LoraConfig):
     import RPi.GPIO as GPIO
 
-    print("GPIO module:", GPIO)
-    print("GPIO file:", GPIO.__file__)
-    print("GPIO version:", getattr(GPIO, "VERSION", None))
-    print("GPIO revision:", getattr(GPIO, "RPI_INFO", None))
-
     from LoRaRF import SX126x
     lora = SX126x()
     if not lora.begin(cfg.pins.spi_bus, cfg.pins.spi_cs,
@@ -147,23 +142,25 @@ def _tmp_radio(cfg: LoraConfig):
 
 def _check_get_status(cfg: LoraConfig) -> None:
 
-    import sys
-    import importlib.util
-    import importlib.metadata
+    print("=== LoRa BEGIN ===")
+    print("spi_bus =", cfg.pins.spi_bus)
+    print("spi_cs  =", cfg.pins.spi_cs)
+    print("reset   =", cfg.pins.reset)
+    print("busy    =", cfg.pins.busy)
+    print("txen    =", cfg.pins.txen)
+    print("rxen    =", cfg.pins.rxen)
 
-    print("Python:", sys.executable)
-    print("sys.path:", sys.path)
+    result = lora.begin(
+        cfg.pins.spi_bus,
+        cfg.pins.spi_cs,
+        cfg.pins.reset,
+        cfg.pins.busy,
+        -1,
+        cfg.pins.txen,
+        cfg.pins.rxen,
+    )
 
-    print("RPi spec:", importlib.util.find_spec("RPi"))
-    print("RPi.GPIO spec:", importlib.util.find_spec("RPi.GPIO"))
-
-    for name in ("rpi-lgpio", "RPi.GPIO", "LoRaRF", "lgpio"):
-        try:
-            d = importlib.metadata.distribution(name)
-            print(name, "=>", d.version, d.locate_file(""))
-        except importlib.metadata.PackageNotFoundError:
-            print(name, "=> NOT INSTALLED")
-
+    print("lora.begin() =>", repr(result))
 
     lora = _tmp_radio(cfg)
     try:

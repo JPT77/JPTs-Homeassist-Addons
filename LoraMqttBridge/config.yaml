@@ -1,6 +1,6 @@
 # Home Assistant Add-on manifest
 name: "LoRa MQTT Gateway"
-version: "0.1.36"
+version: "0.1.37"
 slug: "lora_mqtt_gateway"
 description: "LoRa <-> MQTT Gateway (SX1262). Konfiguration von Frequenz, MQTT, Topic-Mapping, ACK-Parametern und Log-Level direkt in der HA-UI."
 url: "https://github.com/JPT77/JPTs-Homeassist-Addons"
@@ -45,7 +45,7 @@ options:
       spi_bus: 10
       spi_cs: 0
       spi_device: /dev/spidev10.0
-      gpio_chip: /dev/gpiochip10
+      gpio_chip: /dev/gpiochip0
       reset: 24
       busy: 23
       dio1: 25
