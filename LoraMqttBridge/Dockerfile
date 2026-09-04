@@ -1,7 +1,9 @@
 ARG BUILD_FROM=ghcr.io/home-assistant/aarch64-base:3.22
-FROM ${BUILD_FROM}
+FROM ghcr.io/home-assistant/aarch64-base-python:3.13-alpine3.22
 
 WORKDIR /app
+
+RUN python3 --version
 
 RUN apk add --no-cache \
       python3 \
@@ -9,7 +11,6 @@ RUN apk add --no-cache \
       py3-pip \
       linux-headers \
       swig \
-      lgpio \
       gcc \
       musl-dev \
       make \
