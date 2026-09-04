@@ -5,33 +5,33 @@ WORKDIR /app
 
 RUN python3 --version
 
+# python3-dev swig make git
 
 RUN apk add --no-cache \
       python3 \
-      python3-dev \
       py3-pip \
       linux-headers \
-      swig \
       gcc \
-      musl-dev \
-      make \
-      git
+      musl-dev
 
 RUN python3 -m pip install --no-cache-dir adafruit-lgpio
 
 RUN python3 -c "import lgpio; print('lgpio OK:', lgpio.__file__)"
 
-#       rpi-lgpio \
-
+RUN python3 -m pip show rpi-lgpio RPi.GPIO LoRaRF || true
+#       rpi-lgpio
 RUN python3 -m pip install --no-cache-dir --break-system-packages \
-      LoRaRF \
       paho-mqtt \
       PyYAML \
       gpiod \
       spidev
 
+RUN python3 -m pip show rpi-lgpio RPi.GPIO LoRaRF || true
+
 RUN python3 -m pip install --no-cache-dir --break-system-packages \
       --no-deps LoRaRF
+
+RUN python3 -m pip show rpi-lgpio RPi.GPIO LoRaRF || true
 
 # add  a dummy ldconfig that does nothing.
 #RUN printf '#!/bin/sh\nexit 0\n' > /usr/local/bin/ldconfig \
