@@ -12,7 +12,8 @@ RUN apk add --no-cache \
       py3-pip \
       linux-headers \
       gcc \
-      musl-dev
+      musl-dev \
+      swig
 
 RUN python3 -m pip install --no-cache-dir adafruit-lgpio
 
