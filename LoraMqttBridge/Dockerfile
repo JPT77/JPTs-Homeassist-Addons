@@ -2,6 +2,8 @@ FROM ghcr.io/home-assistant/aarch64-base-python:3.13-alpine3.22
 
 WORKDIR /app
 
+ENV RPI_LGPIO_REVISION=e04171
+
 # python3-dev make git
 RUN apk add --no-cache \
       python3 \

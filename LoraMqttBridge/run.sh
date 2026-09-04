@@ -14,11 +14,6 @@ print("RPi:", importlib.util.find_spec("RPi"));
 print("RPi.GPIO:", importlib.util.find_spec("RPi.GPIO"))
 ' || true
 
-ls -la /proc/device-tree || true
-ls -la /proc/device-tree/system 2>&1 || true
-ls -la /dev/gpiochip* 2>&1 || true
-ls -la /dev/spidev* 2>&1 || true
-
 python3 - <<'PY'
 import sys
 import RPi.GPIO as GPIO
