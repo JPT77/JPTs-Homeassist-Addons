@@ -12,6 +12,7 @@ RUN apk add --no-cache \
       libgpiod
 
 RUN python3 -m pip install --no-cache-dir --break-system-packages \
+      rpi-lgpio \
       LoRaRF \
       paho-mqtt \
       PyYAML \
