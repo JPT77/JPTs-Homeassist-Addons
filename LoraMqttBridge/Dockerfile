@@ -21,8 +21,9 @@ RUN python3 -m pip install --no-cache-dir adafruit-lgpio
 
 RUN python3 -c "import lgpio; print('lgpio OK:', lgpio.__file__)"
 
+#       rpi-lgpio \
+
 RUN python3 -m pip install --no-cache-dir --break-system-packages \
-      rpi-lgpio \
       LoRaRF \
       paho-mqtt \
       PyYAML \
