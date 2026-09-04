@@ -11,7 +11,8 @@ RUN apk add --no-cache \
       musl-dev \
       swig
 
-RUN python3 -m pip install --no-cache-dir adafruit-lgpio rpi-lgpio
+RUN python3 -m pip install --no-cache-dir --break-system-packages \
+      adafruit-lgpio rpi-lgpio
 
 RUN python3 -c "import lgpio; print('lgpio OK:', lgpio.__file__)"
 
