@@ -21,10 +21,6 @@ RUN python3 -m pip install --no-cache-dir adafruit-lgpio
 
 RUN python3 -c "import lgpio; print('lgpio OK:', lgpio.__file__)"
 
-RUN python3 -c "import lgpio; print('lgpio OK:', lgpio.__file__); h=lgpio.gpiochip_open(0); print('gpiochip OK:', h); lgpio.gpiochip_close(h)"
-
-
-
 RUN python3 -m pip install --no-cache-dir --break-system-packages \
       rpi-lgpio \
       LoRaRF \
@@ -37,14 +33,14 @@ RUN python3 -m pip install --no-cache-dir --break-system-packages \
       --no-deps LoRaRF
 
 # add  a dummy ldconfig that does nothing.
-RUN printf '#!/bin/sh\nexit 0\n' > /usr/local/bin/ldconfig \
-    && chmod +x /usr/local/bin/ldconfig \
-    && git clone --depth 1 https://github.com/joan2937/lg.git /tmp/lg \
-    && cd /tmp/lg \
-    && make \
-    && make install \
-    && rm -rf /tmp/lg \
-    && rm -f /usr/local/bin/ldconfig
+#RUN printf '#!/bin/sh\nexit 0\n' > /usr/local/bin/ldconfig \
+#    && chmod +x /usr/local/bin/ldconfig \
+#    && git clone --depth 1 https://github.com/joan2937/lg.git /tmp/lg \
+#    && cd /tmp/lg \
+#    && make \
+#    && make install \
+#    && rm -rf /tmp/lg \
+#    && rm -f /usr/local/bin/ldconfig
 
 COPY entry.py /app/entry.py
 COPY config.yaml /app/config.yaml
