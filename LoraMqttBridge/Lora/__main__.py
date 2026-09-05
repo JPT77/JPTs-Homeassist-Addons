@@ -32,7 +32,7 @@ def main(argv: list[str] | None = None) -> int:
     log = configure(cfg.log_level)  # type: ignore[arg-type]
     log.info("lora_mqtt_bridge v%s — role=%s log_level=%s",
              __version__, cfg.role, cfg.log_level)
-    log.debug(f"Params: {args})
+    log.debug(f"Params: {args}")
 
     if not args.skip_probe:
         try:

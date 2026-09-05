@@ -142,7 +142,7 @@ def load(path: str | os.PathLike | None = None) -> Config:
     """Lädt Config: YAML aus `path` ODER Umgebungsvariable `LORA_BRIDGE_CONFIG`
     ODER HA-Options `/data/options.json`.
     """
-    log.info(f"Load config from {path}")
+    print(f"Load config from {path}")
 
     cfg = Config()
 
@@ -179,7 +179,7 @@ _SECRETS_PATHS = (
     "/etc/lora-bridge/secrets.yaml",
     "/etc/lora-bridge/secrets.yml",
     # for PiNode-Debug
-    "PiNode/secrets.yaml"
+    "PiNode/secrets.yaml",
     # for HA-App
     "/data/secrets.yaml",
 )
