@@ -14,7 +14,7 @@ services:
   - mqtt:need
 
 devices:
-  - "/dev/spidev10.0:/dev/spidev10.0"
+  - "/dev/spidev0.0:/dev/spidev0.0"
   - "/dev/gpiochip0:/dev/gpiochip0"
 
 map:
@@ -42,7 +42,7 @@ options:
     use_tcxo: false
     use_irq: true
     pins:
-      spi_bus: 10
+      spi_bus: 0
       spi_cs: 0
       spi_device: /dev/spidev10.0
       gpio_chip: /dev/gpiochip0

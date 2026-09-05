@@ -9,13 +9,13 @@ echo "========================================="
 echo "=== DEBUGGING in RUN.SH ==="
 
 echo "SPIDEV"
-ls -l /dev/spidev10.0
+ls -l /dev/spidev*
 
 python3 - <<'PY'
 import spidev
 
 spi = spidev.SpiDev()
-spi.open(10, 0)
+spi.open(0, 0)
 spi.max_speed_hz = 125000
 spi.mode = 0
 
