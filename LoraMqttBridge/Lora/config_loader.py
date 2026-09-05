@@ -196,6 +196,7 @@ def _apply_secrets_file(cfg: Config) -> None:
     for path in candidates:
         if path and Path(path).is_file():
             try:
+                log.debug(f"Found secrets file {path}")
                 data = yaml.safe_load(Path(path).read_text()) or {}
                 _apply(cfg, data)
                 if "topics" in data:
@@ -207,6 +208,8 @@ def _apply_secrets_file(cfg: Config) -> None:
                     f"Fehler beim Laden der Secret-Datei {path}: {exc}"
                 ) from exc
             break
+        else:
+            log.debug(f"Does not exist {path}")
 
 
 _ENV_MAP = {
@@ -227,6 +230,7 @@ def _apply_env_overrides(cfg: Config) -> None:
         if value is None or value == "":
             continue
         try:
+            log.debug(f"Settings {key}={value}")
             casted = caster(value)
         except Exception:
             continue
