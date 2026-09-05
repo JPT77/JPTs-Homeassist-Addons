@@ -142,7 +142,7 @@ def load(path: str | os.PathLike | None = None) -> Config:
     """Lädt Config: YAML aus `path` ODER Umgebungsvariable `LORA_BRIDGE_CONFIG`
     ODER HA-Options `/data/options.json`.
     """
-    log.Info(f"Load config from {path}")
+    log.info(f"Load config from {path}")
 
     cfg = Config()
 
