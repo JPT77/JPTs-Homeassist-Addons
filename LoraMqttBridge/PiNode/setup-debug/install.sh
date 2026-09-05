@@ -1,9 +1,16 @@
 #!/bin/sh
-if [[ "$(basename "$PWD")" == "setup-debug" ]]; then
+
+if [ "$(basename "$PWD")" = "setup-debug" ]; then
     echo "Must be called from LoraMqttBridge"
     exit 1
 fi
-python -m venv
+
+if [ "$(basename "$PWD")" != "LoraMqttBridge" ]; then
+    echo "Must be called from LoraMqttBridge"
+    exit 1
+fi
+
+python -m venv .
 source bin/activate
 pip install LoRaRF paho-mqtt PyYAML smbus2 spidev gpiod
 
