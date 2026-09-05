@@ -9,9 +9,6 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-import logging
-
-log = logging.getLogger(__name__)
 
 @dataclass
 class MqttConfig:
@@ -198,10 +195,10 @@ def _apply_secrets_file(cfg: Config) -> None:
     """
     candidates = [os.environ.get("LORA_BRIDGE_SECRETS", "")] + list(_SECRETS_PATHS)
     for path in candidates:
-        log.debug(f"Checking {path}")
+        print(f"Checking {path}")
         if path and Path(path).is_file():
             try:
-                log.debug(f"Found secrets file {path}")
+                print(f"Found secrets file {path}")
                 data = yaml.safe_load(Path(path).read_text()) or {}
                 _apply(cfg, data)
                 if "topics" in data:
@@ -229,12 +226,12 @@ _ENV_MAP = {
 
 def _apply_env_overrides(cfg: Config) -> None:
     for env_var, (section, key, caster) in _ENV_MAP.items():
-        log.debug(f"Checking {section}.{key}")
+        print(f"Checking {section}.{key}")
         value = os.environ.get(env_var)
         if value is None or value == "":
             continue
         try:
-            log.debug(f"Settings {key}={value}")
+            print(f"Settings {key}={value}")
             casted = caster(value)
         except Exception:
             continue
