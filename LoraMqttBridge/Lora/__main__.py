@@ -16,11 +16,7 @@ from .hw_probe import probe
 from .logger import configure
 
 
-
 def main(argv: list[str] | None = None) -> int:
-    import logging
-    log = logging.getLogger(__name__)
-
     parser = argparse.ArgumentParser(prog="Lora")
     parser.add_argument("--config", default=None, help="Pfad zu config.yaml")
     parser.add_argument("--skip-probe", action="store_true",
@@ -32,13 +28,12 @@ def main(argv: list[str] | None = None) -> int:
         print(__version__)
         return 0
 
-    log.info(args)
-    log.info(args.config)
-
     cfg = load(args.config)
     log = configure(cfg.log_level)  # type: ignore[arg-type]
     log.info("lora_mqtt_bridge v%s — role=%s log_level=%s",
              __version__, cfg.role, cfg.log_level)
+    log.info(args)
+    log.info(args.config)
 
     if not args.skip_probe:
         try:
