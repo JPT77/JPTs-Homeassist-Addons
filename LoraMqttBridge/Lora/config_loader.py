@@ -11,6 +11,8 @@ from typing import Any
 import yaml
 import logging
 
+log = logging.getLogger(__name__)
+
 @dataclass
 class MqttConfig:
     host: str = "127.0.0.1"
