@@ -28,6 +28,9 @@ def main(argv: list[str] | None = None) -> int:
         print(__version__)
         return 0
 
+    log.info(args)
+    log.info(args.config)
+
     cfg = load(args.config)
     log = configure(cfg.log_level)  # type: ignore[arg-type]
     log.info("lora_mqtt_bridge v%s — role=%s log_level=%s",
