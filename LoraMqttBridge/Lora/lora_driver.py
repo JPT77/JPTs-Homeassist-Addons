@@ -60,6 +60,8 @@ class LoraRadio:
     # ------------------------------------------------------------ setup
     def open(self) -> None:
         from LoRaRF import SX126x  # noqa: WPS433 (runtime import)
+        import RPi.GPIO as GPIO
+        GPIO.setmode(GPIO.BCM)
 
         pins = self.cfg.pins
         self._lora = SX126x()
