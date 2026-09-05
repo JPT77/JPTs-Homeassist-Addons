@@ -196,6 +196,7 @@ def _apply_secrets_file(cfg: Config) -> None:
     """
     candidates = [os.environ.get("LORA_BRIDGE_SECRETS", "")] + list(_SECRETS_PATHS)
     for path in candidates:
+        log.debug(f"Checking {path}")
         if path and Path(path).is_file():
             try:
                 log.debug(f"Found secrets file {path}")
@@ -210,8 +211,6 @@ def _apply_secrets_file(cfg: Config) -> None:
                     f"Fehler beim Laden der Secret-Datei {path}: {exc}"
                 ) from exc
             break
-        else:
-            log.debug(f"Does not exist {path}")
 
 
 _ENV_MAP = {
@@ -228,6 +227,7 @@ _ENV_MAP = {
 
 def _apply_env_overrides(cfg: Config) -> None:
     for env_var, (section, key, caster) in _ENV_MAP.items():
+        log.debug(f"Checking {section}.{path}")
         value = os.environ.get(env_var)
         if value is None or value == "":
             continue
