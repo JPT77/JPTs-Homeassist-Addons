@@ -18,45 +18,45 @@ log = logging.getLogger(__name__)
 
 def probe(lora_cfg: LoraConfig, probe_cfg: ProbeConfig) -> None:
     """Führt die Hardware-Diagnose in 10 Schritten aus."""
-    _step(1, f"SPI-Device {lora_cfg.pins.spi_device} öffnen", _check_spi, lora_cfg)
-    _step(2, f"GPIO-Chip {lora_cfg.pins.gpio_chip} öffnen", _check_gpio_chip, lora_cfg)
-    _step(3, f"BUSY-Pin {lora_cfg.pins.busy} lesbar", _check_busy_readable, lora_cfg)
-    _step(4, "NRST-Toggle → BUSY reagiert", _check_reset_pulse, lora_cfg)
-    _step(5, "SX126x GetStatus per SPI", _check_get_status, lora_cfg)
+    _step(1, f"Open SPI-Device /dev/spidev{lora_cfg.pins.spi_bus}.{lora_cfg.pins.spi_cs}", _check_spi, lora_cfg)
+    _step(2, f"Open GPIO-Chip {lora_cfg.pins.gpio_chip}", _check_gpio_chip, lora_cfg)
+    _step(3, f"Read BUSY-Pin {lora_cfg.pins.busy}", _check_busy_readable, lora_cfg)
+    _step(4, "Reset-Toggle → BUSY", _check_reset_pulse, lora_cfg)
+    _step(5, "SX126x GetStatus through SPI", _check_get_status, lora_cfg)
     _step(6, "SX126x GetDeviceErrors == 0", _check_no_errors, lora_cfg)
-    _step(7, "Modulation & Paket-Parameter setzen", _check_apply_params, lora_cfg)
-    _step(8, "Sync-Word setzen", _check_sync_word, lora_cfg)
+    _step(7, "Set Modulation", _check_apply_params, lora_cfg)
+    _step(8, "Set Sync-Word", _check_sync_word, lora_cfg)
     _step(9, "DIO1 IRQ-Setup", _check_dio1, lora_cfg)
     if probe_cfg.tx_test:
-        _step(10, "TX-Test-Frame senden", _check_tx, lora_cfg, probe_cfg)
+        _step(10, "Send Test Frame", _check_tx, lora_cfg, probe_cfg)
     else:
-        log.info("Step 10 übersprungen (probe.tx_test=false)")
+        log.info("Step 10 skipped (probe.tx_test=false)")
 
 
 def _step(idx: int, title: str, fn, *args) -> None:
-    log.info("Probe %2d: %s ...", idx, title)
+    log.info("Check %2d: %s ...", idx, title)
     try:
         fn(*args)
-        log.info("Probe %2d: OK", idx)
+        log.info("Check %2d: OK", idx)
     except Exception as exc:
-        log.exception("Probe %2d: FAILED — %s", idx, exc)
+        log.exception("Check %2d: FAILED — %s", idx, exc)
         raise
 
 
 def _check_spi(cfg: LoraConfig) -> None:
-    dev = cfg.pins.spi_device or f"/dev/spidev{cfg.pins.spi_bus}.{cfg.pins.spi_cs}"
+    dev = f"/dev/spidev{cfg.pins.spi_bus}.{cfg.pins.spi_cs}"
     if not Path(dev).exists():
-        raise RuntimeError(f"SPI device {dev} nicht vorhanden — dtparam=spi=on?")
+        raise RuntimeError(f"SPI device {dev} not available — dtparam=spi=on?")
     if not os.access(dev, os.R_OK | os.W_OK):
-        raise RuntimeError(f"Keine RW-Rechte auf {dev} (User in Gruppe 'spi'?)")
+        raise RuntimeError(f"No permissions on {dev}, device passed through in config.yaml?")
 
 
 def _check_gpio_chip(cfg: LoraConfig) -> None:
     chip = cfg.pins.gpio_chip or "/dev/gpiochip0"
     if not Path(chip).exists():
-        raise RuntimeError(f"GPIO chip {chip} nicht vorhanden")
+        raise RuntimeError(f"GPIO chip {chip} not available.")
     if not os.access(chip, os.R_OK | os.W_OK):
-        raise RuntimeError(f"Keine RW-Rechte auf {chip} (User in Gruppe 'gpio'?)")
+        raise RuntimeError(f"No permissions on {chip}, device passed through in config.yaml?")
 
 
 def _check_busy_readable(cfg: LoraConfig) -> None:
@@ -129,62 +129,26 @@ def _check_reset_pulse(cfg: LoraConfig) -> None:
 # Die folgenden Schritte benutzen ein temporäres LoRaRF-Handle. Nach den Checks
 # wird es geschlossen — der echte Radio-Handle wird in lora_driver.py aufgebaut.
 def _tmp_radio(cfg: LoraConfig):
-    from LoRaRF import SX126x
     import RPi.GPIO as GPIO
+    # why doesn't set LoraRF this by itself?'
     GPIO.setmode(GPIO.BCM)
 
+    from LoRaRF import SX126x
     lora = SX126x()
-
-    print("1. SX126x() erfolgreich")
-
-    result = lora.begin(
-        cfg.pins.spi_bus,
-        cfg.pins.spi_cs,
-        cfg.pins.reset,
-        cfg.pins.busy,
-        cfg.pins.dio1,
-        cfg.pins.txen,
-        cfg.pins.rxen,
-    )
-
-    print("2. begin() =", result)
-
-    if not result:
-        raise RuntimeError("lora.begin() fehlgeschlagen")
-
+    if not lora.begin(cfg.pins.spi_bus, cfg.pins.spi_cs,
+                      cfg.pins.reset, cfg.pins.busy, -1,
+                      cfg.pins.txen, cfg.pins.rxen):
+        raise RuntimeError("lora.begin() failed")
     return lora
 
 
-#def _tmp_radio(cfg: LoraConfig):
-#    import RPi.GPIO as GPIO
-#
-#    from LoRaRF import SX126x
-#    lora = SX126x()
-#    if not lora.begin(cfg.pins.spi_bus, cfg.pins.spi_cs,
-#                      cfg.pins.reset, cfg.pins.busy, -1,
-#                      cfg.pins.txen, cfg.pins.rxen):
-#        raise RuntimeError("lora.begin() fehlgeschlagen")
-#    return lora
-
-
 def _check_get_status(cfg: LoraConfig) -> None:
-
-    print("=== LoRa BEGIN ===")
-    print("spi_bus =", cfg.pins.spi_bus)
-    print("spi_cs  =", cfg.pins.spi_cs)
-    print("reset   =", cfg.pins.reset)
-    print("busy    =", cfg.pins.busy)
-    print("dio1    =", cfg.pins.dio1)
-    print("txen    =", cfg.pins.txen)
-    print("rxen    =", cfg.pins.rxen)
-    # NSS GPIO8?
-
     lora = _tmp_radio(cfg)
     try:
         st = lora.getStatus()
         mode = (st >> 4) & 0x07
         if mode == 0:
-            raise RuntimeError(f"Chip meldet mode=0 (unconfigured), status=0x{st:02X}")
+            raise RuntimeError(f"Chip returns mode=0 (unconfigured), status=0x{st:02X}")
         log.debug("Status=0x%02X mode=0x%X", st, mode)
     finally:
         lora.end()
@@ -195,7 +159,7 @@ def _check_no_errors(cfg: LoraConfig) -> None:
     try:
         err = lora.getError()
         if err:
-            raise RuntimeError(f"Chip meldet Fehler 0x{err:04X}")
+            raise RuntimeError(f"Chip returns error 0x{err:04X}")
     finally:
         lora.end()
 
@@ -235,7 +199,7 @@ def _check_dio1(cfg: LoraConfig) -> None:
         )
         req.release()
     except ImportError:
-        log.warning("gpiod fehlt → IRQ läuft ggf. über SPI-Poll-Fallback")
+        log.warning("gpiod missing → IRQ might be replaced by SPI-Poll-Fallback")
 
 
 def _check_tx(cfg: LoraConfig, probe_cfg: ProbeConfig) -> None:
@@ -256,6 +220,6 @@ def _check_tx(cfg: LoraConfig, probe_cfg: ProbeConfig) -> None:
                 lora.clearIrqStatus(0x03FF)
                 return
             time.sleep(0.01)
-        raise RuntimeError("Kein TX_DONE innerhalb 3s")
+        raise RuntimeError("No TX_DONE after 3s")
     finally:
         lora.end()
