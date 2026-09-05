@@ -1,10 +1,11 @@
+# cannot install adafruit-lgpio on Python 3.12
 FROM ghcr.io/home-assistant/aarch64-base-python:3.13-alpine3.22
 
 WORKDIR /app
 
+# needed so it opens correct devices?
 ENV RPI_LGPIO_REVISION=e04171
 
-# python3-dev make git
 RUN apk add --no-cache \
       python3 \
       py3-pip \
@@ -14,15 +15,13 @@ RUN apk add --no-cache \
       swig \
       libgpiod
 
+# this lgpio implementation also delivers the binary which lgpio doesn't
 RUN python3 -m pip install --no-cache-dir \
-    adafruit-lgpio
+      adafruit-lgpio
 
+# do not install dependencies automatically
 RUN python3 -m pip install --no-cache-dir --break-system-packages \
-    rpi-lgpio --no-deps
-
-RUN python3 -c "import lgpio; print('lgpio OK:', lgpio.__file__)"
-
-RUN python3 -m pip show rpi-lgpio RPi.GPIO LoRaRF || true
+      rpi-lgpio --no-deps
 
 RUN python3 -m pip install --no-cache-dir --break-system-packages \
       paho-mqtt \
@@ -30,22 +29,9 @@ RUN python3 -m pip install --no-cache-dir --break-system-packages \
       gpiod \
       spidev
 
-RUN python3 -m pip show rpi-lgpio RPi.GPIO LoRaRF || true
-
+# do not install dependencies automatically (RPi.GPIO is replaced by lgpio)
 RUN python3 -m pip install --no-cache-dir --break-system-packages \
       --no-deps LoRaRF
-
-RUN python3 -m pip show rpi-lgpio RPi.GPIO LoRaRF || true
-
-# add  a dummy ldconfig that does nothing.
-#RUN printf '#!/bin/sh\nexit 0\n' > /usr/local/bin/ldconfig \
-#    && chmod +x /usr/local/bin/ldconfig \
-#    && git clone --depth 1 https://github.com/joan2937/lg.git /tmp/lg \
-#    && cd /tmp/lg \
-#    && make \
-#    && make install \
-#    && rm -rf /tmp/lg \
-#    && rm -f /usr/local/bin/ldconfig
 
 COPY entry.py /app/entry.py
 COPY config.yaml /app/config.yaml
