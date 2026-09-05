@@ -129,15 +129,40 @@ def _check_reset_pulse(cfg: LoraConfig) -> None:
 # Die folgenden Schritte benutzen ein temporäres LoRaRF-Handle. Nach den Checks
 # wird es geschlossen — der echte Radio-Handle wird in lora_driver.py aufgebaut.
 def _tmp_radio(cfg: LoraConfig):
-    import RPi.GPIO as GPIO
-
     from LoRaRF import SX126x
+
     lora = SX126x()
-    if not lora.begin(cfg.pins.spi_bus, cfg.pins.spi_cs,
-                      cfg.pins.reset, cfg.pins.busy, -1,
-                      cfg.pins.txen, cfg.pins.rxen):
-        raise RuntimeError("lora.begin() fehlgeschlagen")
+
+    print("1. SX126x() erfolgreich")
+
+    lora.setSPI(cfg.pins.spi_bus, cfg.pins.spi_cs)
+    print("2. setSPI() erfolgreich")
+
+    lora.setPins(
+        cfg.pins.reset,
+        cfg.pins.busy,
+        cfg.pins.dio1,
+        cfg.pins.txen,
+        cfg.pins.rxen,
+    )
+    print("3. setPins() erfolgreich")
+
+    lora.begin()
+    print("4. begin() erfolgreich")
+
     return lora
+
+
+#def _tmp_radio(cfg: LoraConfig):
+#    import RPi.GPIO as GPIO
+#
+#    from LoRaRF import SX126x
+#    lora = SX126x()
+#    if not lora.begin(cfg.pins.spi_bus, cfg.pins.spi_cs,
+#                      cfg.pins.reset, cfg.pins.busy, -1,
+#                      cfg.pins.txen, cfg.pins.rxen):
+#        raise RuntimeError("lora.begin() fehlgeschlagen")
+#    return lora
 
 
 def _check_get_status(cfg: LoraConfig) -> None:
@@ -147,23 +172,11 @@ def _check_get_status(cfg: LoraConfig) -> None:
     print("spi_cs  =", cfg.pins.spi_cs)
     print("reset   =", cfg.pins.reset)
     print("busy    =", cfg.pins.busy)
+    print("dio1    =", cfg.pins.dio1)
     print("txen    =", cfg.pins.txen)
     print("rxen    =", cfg.pins.rxen)
+    # NSS GPIO8?
 
-    lora = _tmp_radio(cfg)
-
-    result = lora.begin(
-        cfg.pins.spi_bus,
-        cfg.pins.spi_cs,
-        cfg.pins.reset,
-        cfg.pins.busy,
-        -1,
-        cfg.pins.txen,
-        cfg.pins.rxen,
-    )
-
-    print("lora.begin() =>", repr(result))
-#-----------
     lora = _tmp_radio(cfg)
     try:
         st = lora.getStatus()

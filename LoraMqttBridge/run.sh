@@ -6,21 +6,51 @@ echo "========================================="
 echo "LoRa MQTT Gateway (Home Assistant Add-on)"
 echo "========================================="
 
-echo "=== GPIO Python Diagnose ==="
+echo "=== DEBUGGING in RUN.SH ==="
 
+echo "=== SOURCE OF BEGIN() ==="
 python3 - <<'PY'
-import os
+import inspect
+from LoRaRF import SX126x
 
-fd = os.open("/dev/gpiochip0", os.O_RDWR)
-print("OS OPEN OK:", fd)
-os.close(fd)
+print(inspect.getsource(SX126x.begin))
 PY
 
-python3 -c "from LoRaRF import SX126x; print('LoRaRF + GPIO OK')"
+echo "=== TEST SPI ==="
+python3 - <<'PY'
+import spidev
 
-python3 -c "import lgpio; print(lgpio.__file__)" ||true
-python3 -c "import RPi.GPIO as GPIO; print(GPIO.__file__); print(GPIO.VERSION)" ||true
-python3 -c "from LoRaRF import SX126x; print('LoRaRF + RPi.GPIO import OK')"||true
+spi = spidev.SpiDev()
+
+try:
+    spi.open(10, 0)
+    print("SPI open: OK")
+    print("max_speed_hz:", spi.max_speed_hz)
+    print("mode:", spi.mode)
+
+    spi.max_speed_hz = 500000
+    spi.mode = 0
+
+    # SX126x: GetStatus opcode 0xC0, anschließend Dummy-Byte
+    result = spi.xfer2([0xC0, 0x00])
+    print("GetStatus raw:", [f"0x{x:02X}" for x in result])
+
+finally:
+    spi.close()
+PY
+
+echo "=== TEST GPIO ==="
+python3 - <<'PY'
+import RPi.GPIO as GPIO
+
+GPIO.setmode(GPIO.BCM)
+
+for pin in (22, 23, 24):
+    GPIO.setup(pin, GPIO.IN)
+    print(f"GPIO{pin} =", GPIO.input(pin))
+
+GPIO.cleanup()
+PY
 
 echo "============================"
 
