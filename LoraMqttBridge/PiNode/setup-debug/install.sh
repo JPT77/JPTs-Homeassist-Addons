@@ -11,7 +11,7 @@ if [ "$(basename "$PWD")" != "LoraMqttBridge" ]; then
 fi
 
 python -m venv .
-source bin/activate
+. bin/activate
 pip install LoRaRF paho-mqtt PyYAML smbus2 spidev gpiod
 
 echo "Start with python -m Lora --config PiNode/config.yaml"
