@@ -132,6 +132,7 @@ def _apply(dc: Any, data: dict) -> Any:
             _apply(current, value)
         else:
             setattr(dc, key, value)
+            print(f"settattr({dc}, {key}, {value})")
     return dc
 
 
