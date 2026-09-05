@@ -130,7 +130,7 @@ def _check_reset_pulse(cfg: LoraConfig) -> None:
 # wird es geschlossen — der echte Radio-Handle wird in lora_driver.py aufgebaut.
 def _tmp_radio(cfg: LoraConfig):
     from LoRaRF import SX126x
-    import gpiod
+    import RPi.GPIO as GPIO
     GPIO.setmode(GPIO.BCM)
 
     lora = SX126x()
