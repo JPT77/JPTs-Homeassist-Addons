@@ -227,7 +227,7 @@ _ENV_MAP = {
 
 def _apply_env_overrides(cfg: Config) -> None:
     for env_var, (section, key, caster) in _ENV_MAP.items():
-        log.debug(f"Checking {section}.{path}")
+        log.debug(f"Checking {section}.{key}")
         value = os.environ.get(env_var)
         if value is None or value == "":
             continue
