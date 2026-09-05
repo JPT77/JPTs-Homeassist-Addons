@@ -135,8 +135,8 @@ def _tmp_radio(cfg: LoraConfig):
 
     print("1. SX126x() erfolgreich")
 
-    lora.setSPI(cfg.pins.spi_bus, cfg.pins.spi_cs)
-    print("2. setSPI() erfolgreich")
+    lora.setSpi(cfg.pins.spi_bus, cfg.pins.spi_cs)
+    print("2. setSpi() erfolgreich")
 
     lora.setPins(
         cfg.pins.reset,
