@@ -15,12 +15,12 @@ from .config_loader import load
 from .hw_probe import probe
 from .logger import configure
 
-import logging
-
-log = logging.getLogger(__name__)
 
 
 def main(argv: list[str] | None = None) -> int:
+    import logging
+    log = logging.getLogger(__name__)
+
     parser = argparse.ArgumentParser(prog="Lora")
     parser.add_argument("--config", default=None, help="Pfad zu config.yaml")
     parser.add_argument("--skip-probe", action="store_true",
