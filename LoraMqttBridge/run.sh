@@ -6,28 +6,6 @@ echo "========================================="
 echo "LoRa MQTT Gateway (Home Assistant Add-on)"
 echo "========================================="
 
-echo "=== DEBUGGING in RUN.SH ==="
-
-echo "SPIDEV"
-ls -l /dev/spidev*
-
-python3 - <<'PY'
-import spidev
-
-spi = spidev.SpiDev()
-spi.open(0, 0)
-spi.max_speed_hz = 125000
-spi.mode = 0
-
-for i in range(5):
-    r = spi.xfer2([0xC0, 0x00, 0x00])
-    print(i, [f"0x{x:02X}" for x in r])
-
-spi.close()
-PY
-
-echo "============================"
-
 # HA-Optionen liegen in /data/options.json — config_loader.py liest das
 # automatisch. Wir setzen zusätzlich die Rolle fest.
 export LORA_BRIDGE_ROLE=ha_gateway
