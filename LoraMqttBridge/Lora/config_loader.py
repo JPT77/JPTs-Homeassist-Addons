@@ -160,4 +160,75 @@ def load(path: str | os.PathLike | None = None) -> Config:
     # Listen manuell in ihre Dataclasses konvertieren
     cfg.topics = [TopicMap(**t) for t in raw.get("topics", [])]
     cfg.sensors = [SensorSpec(**s) for s in raw.get("sensors", [])]
+
+    # ---- Sekundäre Secret-Quellen (überschreiben die YAML-Defaults) ----
+    _apply_secrets_file(cfg)
+    _apply_env_overrides(cfg)
     return cfg
+
+
+# --------------------------------------------------------------------------
+# Secret-Overlays: getrennte Datei + Env-Vars, damit MQTT-Login NICHT im Repo landet
+# --------------------------------------------------------------------------
+_SECRETS_PATHS = (
+    # for PiNode-Installed
+    "/etc/lora-bridge/secrets.yaml",
+    "/etc/lora-bridge/secrets.yml",
+    # for PiNode-Debug
+    "PiNode/secrets.yaml"
+    # for HA-App
+    "/data/secrets.yaml",
+)
+
+
+def _apply_secrets_file(cfg: Config) -> None:
+    """Überlagert cfg mit Werten aus der ersten existierenden Secret-Datei.
+
+    Format identisch zur Haupt-Config, meist nur ein Ausschnitt:
+
+        mqtt:
+          username: lora
+          password: super-secret
+
+    Pfad kann per Env `LORA_BRIDGE_SECRETS` überschrieben werden.
+    """
+    candidates = [os.environ.get("LORA_BRIDGE_SECRETS", "")] + list(_SECRETS_PATHS)
+    for path in candidates:
+        if path and Path(path).is_file():
+            try:
+                data = yaml.safe_load(Path(path).read_text()) or {}
+                _apply(cfg, data)
+                if "topics" in data:
+                    cfg.topics = [TopicMap(**t) for t in data["topics"]]
+                if "sensors" in data:
+                    cfg.sensors = [SensorSpec(**s) for s in data["sensors"]]
+            except Exception as exc:
+                raise RuntimeError(
+                    f"Fehler beim Laden der Secret-Datei {path}: {exc}"
+                ) from exc
+            break
+
+
+_ENV_MAP = {
+    "LORA_BRIDGE_MQTT_HOST":       ("mqtt", "host", str),
+    "LORA_BRIDGE_MQTT_PORT":       ("mqtt", "port", int),
+    "LORA_BRIDGE_MQTT_USER":       ("mqtt", "username", str),
+    "LORA_BRIDGE_MQTT_PASS":       ("mqtt", "password", str),
+    "LORA_BRIDGE_MQTT_TLS":        ("mqtt", "tls", lambda v: v.lower() in ("1", "true", "yes")),
+    "LORA_BRIDGE_MQTT_CLIENT_ID":  ("mqtt", "client_id", str),
+    "LORA_BRIDGE_LOG_LEVEL":       (None, "log_level", str),
+    "LORA_BRIDGE_ROLE":            (None, "role", str),
+}
+
+
+def _apply_env_overrides(cfg: Config) -> None:
+    for env_var, (section, key, caster) in _ENV_MAP.items():
+        value = os.environ.get(env_var)
+        if value is None or value == "":
+            continue
+        try:
+            casted = caster(value)
+        except Exception:
+            continue
+        target = getattr(cfg, section) if section else cfg
+        setattr(target, key, casted)
