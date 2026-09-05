@@ -8,48 +8,22 @@ echo "========================================="
 
 echo "=== DEBUGGING in RUN.SH ==="
 
-echo "=== SOURCE OF BEGIN() ==="
-python3 - <<'PY'
-import inspect
-from LoRaRF import SX126x
+echo "SPIDEV"
+ls -l /dev/spidev10.0
 
-print(inspect.getsource(SX126x.begin))
-PY
-
-echo "=== TEST SPI ==="
 python3 - <<'PY'
 import spidev
 
 spi = spidev.SpiDev()
+spi.open(10, 0)
+spi.max_speed_hz = 125000
+spi.mode = 0
 
-try:
-    spi.open(10, 0)
-    print("SPI open: OK")
-    print("max_speed_hz:", spi.max_speed_hz)
-    print("mode:", spi.mode)
+for i in range(5):
+    r = spi.xfer2([0xC0, 0x00, 0x00])
+    print(i, [f"0x{x:02X}" for x in r])
 
-    spi.max_speed_hz = 500000
-    spi.mode = 0
-
-    # SX126x: GetStatus opcode 0xC0, anschließend Dummy-Byte
-    result = spi.xfer2([0xC0, 0x00])
-    print("GetStatus raw:", [f"0x{x:02X}" for x in result])
-
-finally:
-    spi.close()
-PY
-
-echo "=== TEST GPIO ==="
-python3 - <<'PY'
-import RPi.GPIO as GPIO
-
-GPIO.setmode(GPIO.BCM)
-
-for pin in (22, 23, 24):
-    GPIO.setup(pin, GPIO.IN)
-    print(f"GPIO{pin} =", GPIO.input(pin))
-
-GPIO.cleanup()
+spi.close()
 PY
 
 echo "============================"
