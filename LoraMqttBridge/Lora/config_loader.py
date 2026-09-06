@@ -10,6 +10,7 @@ from typing import Any
 
 import yaml
 
+
 @dataclass
 class MqttConfig:
     host: str = "127.0.0.1"
