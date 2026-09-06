@@ -127,3 +127,11 @@ sensors:
 #    topic_id: 6
 #    mqtt_topic: "sensors/keller/wasserstand"
 #    ack_req: true
+
+  # System-Status des Pi selbst (CPU/RAM/Temp/Uptime/WiFi-RSSI).
+  # Wird als einzelne Felder publisht (KEINE Gruppierung zu einem Sensor).
+  - kind: system_status
+    name: pi_system
+    poll_interval_s: 300
+    mqtt_topic: "sys/pi/{field}"
+    topic_id: 0     # 0 = nur MQTT lokal, nicht über LoRa
