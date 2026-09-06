@@ -171,6 +171,9 @@ _BACKENDS = {
 
 
 def _make_backend(spec: SensorSpec):
+    if spec.kind == "system_status":
+        from .sys_status import SystemStatus
+        return SystemStatus(spec)
     cls = _BACKENDS.get(spec.kind)
     if cls is None:
         raise ValueError(f"unknown sensor kind: {spec.kind}")
