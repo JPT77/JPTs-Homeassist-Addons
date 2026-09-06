@@ -7,6 +7,8 @@ log_level: debug         # debug | info | normal
 mqtt:
   host: 127.0.0.1        # lokaler Mosquitto (auf dem Pi)
   port: 1883
+  # username/password NICHT hier — siehe /etc/lora-bridge/secrets.yaml
+  # oder /etc/lora-bridge/secrets.env (überschreibt diese Werte)
   username: null
   password: null
   tls: false
