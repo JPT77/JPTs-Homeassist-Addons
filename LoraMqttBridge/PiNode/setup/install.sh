@@ -46,6 +46,16 @@ if [[ ! -f /etc/lora-bridge/config.yaml ]]; then
   echo "    (Bitte anpassen: sudo nano /etc/lora-bridge/config.yaml)"
 fi
 
+echo "==> Secret-Templates (nur einmalig, nicht überschreiben)"
+if [[ ! -f /etc/lora-bridge/secrets.yaml ]] && [[ -f "$HERE/secrets.example.yaml" ]]; then
+  install -m 0600 "$HERE/secrets.example.yaml" /etc/lora-bridge/secrets.yaml
+  echo "    → /etc/lora-bridge/secrets.yaml angelegt (chmod 600). Login eintragen!"
+fi
+if [[ ! -f /etc/lora-bridge/secrets.env ]] && [[ -f "$HERE/secrets.example.env" ]]; then
+  install -m 0600 "$HERE/secrets.example.env" /etc/lora-bridge/secrets.env
+  echo "    → /etc/lora-bridge/secrets.env angelegt (chmod 600)."
+fi
+
 echo "==> hostapd / dnsmasq / mosquitto Konfig"
 install -m 0644 "$HERE/hostapd.conf"    /etc/hostapd/hostapd.conf
 sed -i 's|^#\?DAEMON_CONF=.*|DAEMON_CONF="/etc/hostapd/hostapd.conf"|' /etc/default/hostapd
