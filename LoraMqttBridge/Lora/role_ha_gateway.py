@@ -11,6 +11,7 @@ import time
 
 from .bridge import Bridge
 from .config_loader import Config
+from .discovery import announce as announce_discovery
 from .lora_driver import build_radio
 from .mqtt_client import MqttBridge
 
@@ -23,6 +24,12 @@ def run(cfg: Config) -> int:
     mqtt.connect()
     bridge = Bridge(cfg, radio, mqtt)
     bridge.start()
+
+    announce_discovery(cfg, mqtt)
+    if getattr(cfg, "web_ui_port", 0):
+        from .web_ui import register_bridge
+        register_bridge(bridge)
+        run_web_ui(port=cfg.web_ui_port)
 
     log.info("ha_gateway läuft. Backend=%s", radio.backend)
 
