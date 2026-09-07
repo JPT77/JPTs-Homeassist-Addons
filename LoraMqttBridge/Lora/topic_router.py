@@ -1,4 +1,4 @@
-"""MQTT-Topic ↔ LoRa Topic-ID Router."""
+"""MQTT Topic <-> LoRa Topic ID Router."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ class TopicRouter:
         return self._by_topic.get(topic)
 
     def subscribe_targets(self) -> list[tuple[str, int]]:
-        """Alle Topics, die aus MQTT gelesen werden (tx über LoRa oder bidir)."""
+        """All topics read from MQTT (transmitted over LoRa: tx or bidir)."""
         return [
             (t.mqtt_topic, t.qos)
             for t in self._by_topic.values()
