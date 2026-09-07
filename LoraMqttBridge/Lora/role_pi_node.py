@@ -12,6 +12,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import signal
 import time
@@ -107,13 +108,12 @@ def _start_sensors(cfg: Config, bridge: Bridge, mqtt: MqttBridge) -> list[Sensor
     readers: list[SensorReader] = []
 
     def on_reading(spec, field, value):
-        # Payload = einfacher UTF-8-Wert. Sensoren mit "mehrfeld" (BMP280 hat
-        # temperature+pressure) senden je ein Frame pro Feld.
-        payload = f"{value}".encode("utf-8")
+        reading = {field: value}
         if spec.topic_id:
-            bridge.send_mqtt_over_lora(spec.topic_id, payload, reliable=spec.ack_req)
+            bridge.send_mqtt_over_lora(spec.topic_id, reading, reliable=spec.ack_req)
         if spec.mqtt_topic:
             topic = spec.mqtt_topic.format(name=spec.name, field=field)
+            payload = json.dumps(reading).encode("utf-8")
             mqtt.publish(topic, payload, qos=0, retain=True)
         log.info("Sensor %s.%s = %s", spec.name, field, value)
 
