@@ -5,11 +5,13 @@ from __future__ import annotations
 import logging
 import threading
 import time
+from typing import Any
 
 from .ack_manager import AckManager
 from .config_loader import Config
 from .lora_driver import LoraRadio
 from .mqtt_client import MqttBridge
+from .payload_codec import PayloadCodec
 from .protocol import Frame, FrameType, PROTOCOL_VERSION, build_ack, build_mqtt
 from .topic_router import TopicRouter
 
@@ -17,12 +19,12 @@ log = logging.getLogger(__name__)
 
 
 class Bridge:
-    """Verbindet LoRa <-> MQTT anhand des Topic-Routers.
+    """Connects LoRa <-> MQTT using the topic router and payload codec.
 
-    - MQTT-Messages auf konfigurierten TX-Topics werden zu LoRa-Frames.
-    - LoRa-Frames vom Typ MQTT werden auf konfigurierten RX-Topics gepublisht.
-    - ACK-Frames werden an den AckManager weitergereicht.
-    - Duplikate (retry) werden am (topic_id, seq)-Paar erkannt.
+    - MQTT messages on configured TX topics are encoded into LoRa binary frames.
+    - LoRa frames of type MQTT are decoded and published to configured RX topics.
+    - ACK frames are forwarded to the AckManager.
+    - Duplicates (retry) are filtered based on the (topic_id, seq) pair.
     """
 
     def __init__(self, cfg: Config, radio: LoraRadio, mqtt: MqttBridge):
@@ -30,6 +32,7 @@ class Bridge:
         self.radio = radio
         self.mqtt = mqtt
         self.router = TopicRouter(cfg.topics)
+        self.codec = PayloadCodec()
         self.ack = AckManager(cfg.ack, sender=self._raw_send)
         self._seen: dict[tuple[int, int], float] = {}
         self._stop = threading.Event()
@@ -70,8 +73,13 @@ class Bridge:
             return
         if entry.direction not in ("tx", "bidir"):
             return
+        try:
+            lora_payload = self.codec.encode(entry, payload)
+        except Exception as exc:
+            log.error("Failed to encode MQTT payload for topic '%s': %s", topic, exc)
+            return
         seq = self.ack.next_seq()
-        frame = build_mqtt(seq, entry.id, payload,
+        frame = build_mqtt(seq, entry.id, lora_payload,
                            ack_req=(entry.qos >= 1))
         if frame.ack_req:
             self.ack.send_reliable(frame)

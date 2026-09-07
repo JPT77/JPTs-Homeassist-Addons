@@ -61,12 +61,19 @@ class AckConfig:
 
 
 @dataclass
+class FieldSpec:
+    name: str
+    type: str = "float"
+
+
+@dataclass
 class TopicMap:
     id: int
     mqtt_topic: str
     direction: str = "bidir"   # rx / tx / bidir
     qos: int = 0
     retained: bool = False
+    fields: list[FieldSpec] = field(default_factory=list)
 
 
 @dataclass
@@ -161,13 +168,36 @@ def load(path: str | os.PathLike | None = None) -> Config:
     _apply(cfg, raw)
 
     # Listen manuell in ihre Dataclasses konvertieren
-    cfg.topics = [TopicMap(**t) for t in raw.get("topics", [])]
+    cfg.topics = _parse_topics(raw.get("topics", []))
     cfg.sensors = [SensorSpec(**s) for s in raw.get("sensors", [])]
 
     # ---- Sekundäre Secret-Quellen (überschreiben die YAML-Defaults) ----
     _apply_secrets_file(cfg)
     _apply_env_overrides(cfg)
     return cfg
+
+
+def _parse_topics(raw_topics: list[dict] | None) -> list[TopicMap]:
+    """Parse raw topic dictionary list into TopicMap and FieldSpec dataclasses."""
+    if not raw_topics:
+        return []
+    result: list[TopicMap] = []
+    for t in raw_topics:
+        raw_fields = t.get("fields", [])
+        field_specs: list[FieldSpec] = []
+        for f in raw_fields:
+            if isinstance(f, dict):
+                field_specs.append(
+                    FieldSpec(
+                        name=str(f.get("name", "")),
+                        type=str(f.get("type", "float")),
+                    )
+                )
+            elif isinstance(f, str):
+                field_specs.append(FieldSpec(name=f, type="float"))
+        item_data = {k: v for k, v in t.items() if k != "fields"}
+        result.append(TopicMap(**item_data, fields=field_specs))
+    return result
 
 
 # --------------------------------------------------------------------------
@@ -204,7 +234,7 @@ def _apply_secrets_file(cfg: Config) -> None:
                 data = yaml.safe_load(Path(path).read_text()) or {}
                 _apply(cfg, data)
                 if "topics" in data:
-                    cfg.topics = [TopicMap(**t) for t in data["topics"]]
+                    cfg.topics = _parse_topics(data["topics"])
                 if "sensors" in data:
                     cfg.sensors = [SensorSpec(**s) for s in data["sensors"]]
             except Exception as exc:
