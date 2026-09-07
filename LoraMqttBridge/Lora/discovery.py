@@ -29,6 +29,8 @@ _FIELD_META = {
                     "state_class": "measurement", "icon": "mdi:sine-wave"},
     "wasserstand": {"unit_of_measurement": "V", "state_class": "measurement",
                     "icon": "mdi:water"},
+    "soc":         {"device_class": "battery", "unit_of_measurement": "%",
+                    "state_class": "measurement"},
 }
 
 
@@ -55,24 +57,60 @@ def announce(cfg: Config, mqtt: MqttBridge) -> None:
     log.info("MQTT Discovery: %d Entities gepublisht", announced)
 
 
+def _find_field_meta(field_name: str, topic_name: str) -> dict:
+    """Find metadata matching the field name or topic name."""
+    f_lower = field_name.lower()
+    for key, meta in _FIELD_META.items():
+        if key in f_lower:
+            return meta
+    t_lower = topic_name.lower()
+    for key, meta in _FIELD_META.items():
+        if key in t_lower:
+            return meta
+    return {}
+
+
 def _announce_topic(node_id: str, device: dict, topic: TopicMap, mqtt: MqttBridge) -> int:
-    obj_id = _slug(topic.mqtt_topic)
-    unique_id = f"{node_id}_{obj_id}"
-    payload = {
-        "name": topic.mqtt_topic.replace("/", " ").title(),
-        "state_topic": topic.mqtt_topic,
-        "unique_id": unique_id,
-        "device": device,
-    }
-    # Heuristik: field aus letztem Topic-Segment
-    last = topic.mqtt_topic.rsplit("/", 1)[-1].lower()
-    for field, meta in _FIELD_META.items():
-        if field in last:
-            payload.update(meta)
-            break
-    cfg_topic = f"{DISCOVERY_PREFIX}/sensor/{unique_id}/config"
-    mqtt.publish(cfg_topic, json.dumps(payload), qos=1, retain=True)
-    return 1
+    if not topic.fields:
+        obj_id = _slug(topic.mqtt_topic)
+        unique_id = f"{node_id}_{obj_id}"
+        payload = {
+            "name": topic.mqtt_topic.replace("/", " ").title(),
+            "state_topic": topic.mqtt_topic,
+            "unique_id": unique_id,
+            "device": device,
+        }
+        meta = _find_field_meta("", topic.mqtt_topic)
+        payload.update(meta)
+        cfg_topic = f"{DISCOVERY_PREFIX}/sensor/{unique_id}/config"
+        mqtt.publish(cfg_topic, json.dumps(payload), qos=1, retain=True)
+        return 1
+
+    count = 0
+    for field in topic.fields:
+        if len(topic.fields) == 1:
+            obj_id = _slug(topic.mqtt_topic)
+            entity_name = topic.mqtt_topic.replace("/", " ").title()
+        else:
+            obj_id = f"{_slug(topic.mqtt_topic)}_{_slug(field.name)}"
+            entity_name = f"{topic.mqtt_topic.replace('/', ' ').title()} {field.name.title()}"
+
+        unique_id = f"{node_id}_{obj_id}"
+        payload = {
+            "name": entity_name,
+            "state_topic": topic.mqtt_topic,
+            "value_template": f"{{{{ value_json.{field.name} }}}}",
+            "unique_id": unique_id,
+            "device": device,
+        }
+        meta = _find_field_meta(field.name, topic.mqtt_topic)
+        payload.update(meta)
+
+        cfg_topic = f"{DISCOVERY_PREFIX}/sensor/{unique_id}/config"
+        mqtt.publish(cfg_topic, json.dumps(payload), qos=1, retain=True)
+        count += 1
+
+    return count
 
 
 def _announce_sensor(node_id: str, device: dict, spec: SensorSpec, mqtt: MqttBridge) -> int:
