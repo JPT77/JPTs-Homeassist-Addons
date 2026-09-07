@@ -57,6 +57,8 @@ class PayloadCodec:
         total_fields = len(topic.fields)
         for idx, field in enumerate(topic.fields):
             val = values.get(field.name)
+            if val is None and total_fields == 1 and len(values) == 1:
+                val = next(iter(values.values()))
             if val is None:
                 raise ValueError(
                     f"Missing value for field '{field.name}' in topic '{topic.mqtt_topic}'"
