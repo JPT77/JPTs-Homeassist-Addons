@@ -71,7 +71,7 @@ class LoraRadio:
         irq_pin = -1 if self.cfg.use_irq else -1
 
         log.info(
-            "LoRa init: SPI %s:%s  RESET=BCM%d BUSY=BCM%d DIO1=BCM%d RXEN=BCM%d",
+            "LoRa init: SPI=%s:%s RESET=BCM%d BUSY=BCM%d DIO1=BCM%d RXEN=BCM%d",
             pins.spi_bus, pins.spi_cs, pins.reset, pins.busy, pins.dio1, pins.rxen,
         )
         ok = self._lora.begin(
