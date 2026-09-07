@@ -63,6 +63,49 @@ options:
       direction: bidir
       qos: 1
       retained: true
+      fields:
+        - name: soc
+          type: float
+    - id: 2
+      mqtt_topic: "sensors/keller/pressure"
+      direction: bidir
+      qos: 0
+      retained: true
+      fields:
+        - name: pressure
+          type: float
+    - id: 3
+      mqtt_topic: "sensors/keller/temperature_bmp"
+      direction: bidir
+      qos: 0
+      retained: true
+      fields:
+        - name: temperature
+          type: float
+    - id: 4
+      mqtt_topic: "sensors/keller/humidity"
+      direction: bidir
+      qos: 0
+      retained: true
+      fields:
+        - name: humidity
+          type: float
+    - id: 5
+      mqtt_topic: "sensors/keller/temperature_aht"
+      direction: bidir
+      qos: 0
+      retained: true
+      fields:
+        - name: temperature
+          type: float
+    - id: 6
+      mqtt_topic: "sensors/keller/wasserstand"
+      direction: bidir
+      qos: 0
+      retained: true
+      fields:
+        - name: wasserstand
+          type: float
 
 schema:
   log_level: list(debug|info|normal)
@@ -105,3 +148,6 @@ schema:
       direction: list(rx|tx|bidir)
       qos: int(0,2)
       retained: bool
+      fields:
+        - name: str
+          type: list(float|float32|float64|double|int|int8|uint8|int16|uint16|int32|uint32|int64|uint64|bool|str)
