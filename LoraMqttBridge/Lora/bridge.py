@@ -134,12 +134,17 @@ class Bridge:
     def _deliver_mqtt(self, frame: Frame) -> None:
         entry = self.router.topic_by_id(frame.topic_id)
         if entry is None:
-            log.warning("Kein Topic-Mapping für ID %d", frame.topic_id)
+            log.warning("No topic mapping for ID %d", frame.topic_id)
             return
         if entry.direction not in ("rx", "bidir"):
-            log.debug("Topic %s ist %s, RX-Frame ignoriert", entry.mqtt_topic, entry.direction)
+            log.debug("Topic %s is %s, RX frame ignored", entry.mqtt_topic, entry.direction)
             return
-        self.mqtt.publish(entry.mqtt_topic, frame.payload,
+        try:
+            mqtt_payload = self.codec.decode(entry, frame.payload)
+        except Exception as exc:
+            log.warning("Failed to decode LoRa payload for topic ID %d: %s", frame.topic_id, exc)
+            return
+        self.mqtt.publish(entry.mqtt_topic, mqtt_payload,
                           qos=entry.qos, retain=entry.retained)
 
     def _gc_seen(self, now: float) -> None:
@@ -149,9 +154,24 @@ class Bridge:
         self._seen = {k: v for k, v in self._seen.items() if v >= cutoff}
 
     # ------------------------------------------------------------ helpers for other tasks
-    def send_mqtt_over_lora(self, topic_id: int, payload: bytes, reliable: bool) -> None:
+    def send_mqtt_over_lora(self, topic_id: int, payload: Any, reliable: bool) -> None:
+        """Encode payload and send over LoRa for a given topic ID."""
+        entry = self.router.topic_by_id(topic_id)
+        if entry is not None:
+            try:
+                lora_payload = self.codec.encode(entry, payload)
+            except Exception as exc:
+                log.error("Failed to encode payload for topic ID %d: %s", topic_id, exc)
+                return
+        elif isinstance(payload, bytes):
+            lora_payload = payload
+        elif isinstance(payload, str):
+            lora_payload = payload.encode("utf-8")
+        else:
+            lora_payload = str(payload).encode("utf-8")
+
         seq = self.ack.next_seq()
-        frame = build_mqtt(seq, topic_id, payload, ack_req=reliable)
+        frame = build_mqtt(seq, topic_id, lora_payload, ack_req=reliable)
         if reliable:
             self.ack.send_reliable(frame)
         else:
