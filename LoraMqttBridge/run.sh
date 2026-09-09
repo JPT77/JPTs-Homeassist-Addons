@@ -26,4 +26,9 @@ fi
 # In den Add-on-Optionen ist "role" nicht enthalten (fest ha_gateway).
 # config_loader.py mergt /data/options.json direkt in Config, wir überschreiben
 # die Rolle über Env.
+if [[ -d /config ]] && [[ ! -f /config/topics.yaml ]] && [[ -f /app/topics.yaml ]]; then
+  echo "Initializing /config/topics.yaml from /app/topics.yaml..."
+  cp /app/topics.yaml /config/topics.yaml
+fi
+
 python3 /app/entry.py

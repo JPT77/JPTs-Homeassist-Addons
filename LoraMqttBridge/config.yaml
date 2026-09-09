@@ -57,58 +57,27 @@ options:
   probe:
     tx_test: false
     tx_test_payload: PROBE
-  topics:
-    - id: 1
-      mqtt_topic: "solar/battery/soc"
-      direction: bidir
+  topics_file: "/config/topics.yaml"
+  mqtt_subscriptions:
+    - name: "ha_power_to_lora"
+      source_topic: "homeassistant/sensor/power/state"
+      json_query: "state"
+      target_topic_id: 1
       qos: 1
       retained: true
-      fields:
-        - name: soc
-          type: float
-    - id: 2
-      mqtt_topic: "sensors/keller/pressure"
-      direction: bidir
-      qos: 0
-      retained: true
-      fields:
-        - name: pressure
-          type: float
-    - id: 3
-      mqtt_topic: "sensors/keller/temperature_bmp"
-      direction: bidir
-      qos: 0
-      retained: true
-      fields:
-        - name: temperature
-          type: float
-    - id: 4
-      mqtt_topic: "sensors/keller/humidity"
-      direction: bidir
-      qos: 0
-      retained: true
-      fields:
-        - name: humidity
-          type: float
-    - id: 5
-      mqtt_topic: "sensors/keller/temperature_aht"
-      direction: bidir
-      qos: 0
-      retained: true
-      fields:
-        - name: temperature
-          type: float
-    - id: 6
-      mqtt_topic: "sensors/keller/wasserstand"
-      direction: bidir
-      qos: 0
-      retained: true
-      fields:
-        - name: wasserstand
-          type: float
 
 schema:
   log_level: list(debug|info|normal)
+  topics_file: str?
+  mqtt_subscriptions:
+    - name: str?
+      source_topic: str
+      json_query: str?
+      target_topic_id: int(0,255)?
+      target_mqtt_topic: str?
+      payload_template: str?
+      qos: int(0,2)?
+      retained: bool?
   mqtt:
     host: str
     port: port
@@ -142,12 +111,3 @@ schema:
   probe:
     tx_test: bool
     tx_test_payload: str
-  topics:
-    - id: int(0,255)
-      mqtt_topic: str
-      direction: list(rx|tx|bidir)
-      qos: int(0,2)
-      retained: bool
-      fields:
-        - name: str
-          type: list(float|float32|float64|double|int|int8|uint8|int16|uint16|int32|uint32|int64|uint64|bool|str)

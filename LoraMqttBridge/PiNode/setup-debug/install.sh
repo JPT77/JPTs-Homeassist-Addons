@@ -12,6 +12,6 @@ fi
 
 python -m venv .
 . bin/activate
-pip install LoRaRF paho-mqtt PyYAML smbus2 spidev gpiod
+pip install LoRaRF paho-mqtt PyYAML smbus2 spidev gpiod jq
 
 echo "Start with python -m Lora --config PiNode/config.yaml"

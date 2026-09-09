@@ -1,0 +1,62 @@
+# Shared Topic & Field Definitions for LoRa <-> MQTT Bridge
+# This file is the single source of truth for both:
+#   1. Home Assistant Gateway (ha_gateway)
+#   2. Raspberry Pi Field Node (pi_node)
+#
+# Each topic defines:
+#   - id: Unique 8-bit integer (0..255) sent in the LoRa frame header
+#   - mqtt_topic: MQTT topic path
+#   - direction: Communication direction (rx, tx, bidir)
+#   - qos: MQTT QoS level (0 = unconfirmed, >=1 = reliable with LoRa ACK)
+#   - retained: MQTT retain flag
+#   - fields: Ordered list of data fields contained in the message:
+#       - name: Field name used in MQTT JSON payloads
+#       - type: Data type for binary packing over LoRa (float, double, int8, uint8, int16, uint16, int32, uint32, bool, str)
+
+topics:
+  - id: 1
+    mqtt_topic: "solar/battery/soc"
+    direction: tx
+    qos: 1
+    retained: true
+    fields:
+      - name: soc
+        type: float
+
+  # HichiIR powermeter – STATUS telemetry (tele/HichiIR/STATE)
+  # Payload: 4+4+1+1+1+2+1 = 14 bytes
+  - id: 10
+    mqtt_topic: "tele/HichiIR/STATE"
+    direction: tx          # pi_node → ha_gateway only
+    qos: 1
+    retained: true
+    fields:
+      - name: timestamp        # uint32 – seconds since 2020-01-01T00:00:00Z; 0xFFFFFFFF = invalid
+        type: uint32
+      - name: uptime           # uint32 – seconds; 0xFFFFFFFF = invalid
+        type: uint32
+      - name: mqtt_count       # uint8 – MQTT reconnect count; 0xFF = invalid
+        type: uint8
+      - name: wifi_signal_dbm  # int8 – dBm (negative); 0xFF = invalid
+        type: uint8
+      - name: wifi_rssi        # uint8 – RSSI percentage 0-100; 0xFF = invalid
+        type: uint8
+      - name: wifi_downtime    # uint16 – cumulative downtime in seconds; 0xFFFF = invalid
+        type: uint16
+      - name: wifi_link_count  # uint8 – number of re-associations; 0xFF = invalid
+        type: uint8
+
+  # HichiIR powermeter – ENERGY sensor (tele/HichiIR/SENSOR)
+  # Payload: 4+2+2 = 8 bytes
+  - id: 11
+    mqtt_topic: "tele/HichiIR/SENSOR"
+    direction: tx          # pi_node → ha_gateway only
+    qos: 1
+    retained: true
+    fields:
+      - name: timestamp        # uint32 – seconds since 2020-01-01T00:00:00Z; 0xFFFFFFFF = invalid
+        type: uint32
+      - name: energy_in        # uint16 – imported energy in kWh (integer); 0xFFFF = invalid
+        type: uint16
+      - name: energy_out       # uint16 – exported energy in kWh (integer); 0xFFFF = invalid
+        type: uint16

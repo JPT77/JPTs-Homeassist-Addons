@@ -37,13 +37,20 @@ python3 -m venv /opt/lora-bridge
 echo "==> Code deployen nach /opt/lora-bridge/app"
 rm -rf /opt/lora-bridge/app
 mkdir -p /opt/lora-bridge/app
-cp -r "$REPO/lora_mqtt_bridge" /opt/lora-bridge/app/
+if [[ -d "$REPO/Lora" ]]; then
+  cp -r "$REPO/Lora" /opt/lora-bridge/app/
+elif [[ -d "$REPO/lora_mqtt_bridge" ]]; then
+  cp -r "$REPO/lora_mqtt_bridge" /opt/lora-bridge/app/
+fi
 
 echo "==> Config nach /etc/lora-bridge/config.yaml"
 mkdir -p /etc/lora-bridge
 if [[ ! -f /etc/lora-bridge/config.yaml ]]; then
   cp "$HERE/../config.yaml" /etc/lora-bridge/config.yaml
   echo "    (Bitte anpassen: sudo nano /etc/lora-bridge/config.yaml)"
+fi
+if [[ -f "$REPO/topics.yaml" ]] && [[ ! -f /etc/lora-bridge/topics.yaml ]]; then
+  cp "$REPO/topics.yaml" /etc/lora-bridge/topics.yaml
 fi
 
 echo "==> Secret-Templates (nur einmalig, nicht überschreiben)"

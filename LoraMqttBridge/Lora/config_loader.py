@@ -117,6 +117,27 @@ class ProbeConfig:
 
 
 @dataclass
+class MqttSubscription:
+    name: str = ""
+    source_topic: str = ""
+    # json_query accepts either:
+    #   - A simple dot-notation path:  "battery.soc" or "Wifi.Signal"
+    #   - A full jq expression (single- or multi-line) that uses helpers from
+    #     dataconvert.jq (u8, u16, u32, i8, i16, i32, be16, be32, duration_sec).
+    #     When the query returns a flat int array [b0, b1, ...], it is sent as
+    #     raw bytes over LoRa, bypassing PayloadCodec.
+    json_query: str | None = None
+    # extract: alternative to json_query – maps field names to dot-notation paths.
+    # Result is encoded by PayloadCodec using the field types from topics.yaml.
+    extract: dict[str, str] = field(default_factory=dict)
+    target_topic_id: int | None = None          # Forwards over LoRa if set
+    target_mqtt_topic: str | None = None        # Forwards to local MQTT topic if set
+    payload_template: str | None = None         # Only used with target_mqtt_topic
+    qos: int = 0
+    retained: bool = False
+
+
+@dataclass
 class Config:
     role: str = "pi_node"        # pi_node / ha_gateway
     log_level: str = "info"
@@ -124,6 +145,8 @@ class Config:
     lora: LoraConfig = field(default_factory=LoraConfig)
     ack: AckConfig = field(default_factory=AckConfig)
     topics: list[TopicMap] = field(default_factory=list)
+    topics_file: str | None = None
+    mqtt_subscriptions: list[MqttSubscription] = field(default_factory=list)
     battery_relay: BatteryRelay = field(default_factory=BatteryRelay)
     sensors: list[SensorSpec] = field(default_factory=list)
     hotspot: HotspotConfig = field(default_factory=HotspotConfig)
@@ -131,7 +154,7 @@ class Config:
 
 
 def _apply(dc: Any, data: dict) -> Any:
-    """Rekursives Anwenden eines dicts auf ein Dataclass-Objekt."""
+    """Recursively apply a dict onto a dataclass object."""
     for key, value in data.items():
         if not hasattr(dc, key):
             continue
@@ -140,16 +163,13 @@ def _apply(dc: Any, data: dict) -> Any:
             _apply(current, value)
         else:
             setattr(dc, key, value)
-            print(f"settattr({dc}, {key}, {value})")
     return dc
 
 
 def load(path: str | os.PathLike | None = None) -> Config:
-    """Lädt Config: YAML aus `path` ODER Umgebungsvariable `LORA_BRIDGE_CONFIG`
-    ODER HA-Options `/data/options.json`.
+    """Loads config: YAML from `path` OR environment variable `LORA_BRIDGE_CONFIG`
+    OR HA options `/data/options.json`.
     """
-    print(f"Load config from {path}")
-
     cfg = Config()
 
     raw: dict = {}
@@ -160,21 +180,69 @@ def load(path: str | os.PathLike | None = None) -> Config:
     elif Path("/data/options.json").is_file():
         raw = json.loads(Path("/data/options.json").read_text())
 
-    # Sync-Word darf als Hex-String kommen (aus HA-UI)
+    # If loading an HA add-on manifest directly, unwrap the 'options' section
+    if "options" in raw and isinstance(raw["options"], dict):
+        raw = raw["options"]
+
+    # Sync word may arrive as hex string (e.g. from HA UI)
     lora = raw.get("lora") or {}
     if isinstance(lora.get("sync_word"), str):
         lora["sync_word"] = int(lora["sync_word"], 0)
 
     _apply(cfg, raw)
 
-    # Listen manuell in ihre Dataclasses konvertieren
-    cfg.topics = _parse_topics(raw.get("topics", []))
+    # Load topics: from raw options or shared topics.yaml file
+    cfg.topics = _load_topics(raw, path)
     cfg.sensors = [SensorSpec(**s) for s in raw.get("sensors", [])]
+    cfg.mqtt_subscriptions = _parse_subscriptions(raw.get("mqtt_subscriptions", []))
 
-    # ---- Sekundäre Secret-Quellen (überschreiben die YAML-Defaults) ----
+    # ---- Secondary secret overlays (override YAML defaults) ----
     _apply_secrets_file(cfg)
     _apply_env_overrides(cfg)
     return cfg
+
+
+def _load_topics(raw: dict, config_path: str | os.PathLike | None) -> list[TopicMap]:
+    """Loads topics either from raw config dict, or from a shared topics.yaml file."""
+    # 1. If explicit topics are present in raw config, use them
+    if raw.get("topics"):
+        return _parse_topics(raw["topics"])
+
+    # 2. Look for shared topics.yaml in candidate locations
+    explicit_file = raw.get("topics_file") or os.environ.get("LORA_BRIDGE_TOPICS")
+    candidate_paths: list[Path] = []
+
+    if explicit_file:
+        candidate_paths.append(Path(explicit_file))
+        if config_path:
+            candidate_paths.append(Path(config_path).parent / explicit_file)
+
+    if config_path:
+        candidate_paths.append(Path(config_path).parent / "topics.yaml")
+        candidate_paths.append(Path(config_path).parent.parent / "topics.yaml")
+
+    candidate_paths.extend([
+        Path("/config/topics.yaml"),          # HA addon_config path
+        Path("/app/topics.yaml"),             # Docker container path
+        Path("/etc/lora-bridge/topics.yaml"), # Pi installed path
+        Path("topics.yaml"),                  # Current directory / repo root
+        Path("PiNode/topics.yaml"),
+    ])
+
+    for candidate in candidate_paths:
+        if candidate.is_file():
+            try:
+                data = yaml.safe_load(candidate.read_text()) or {}
+                if isinstance(data, dict) and "topics" in data:
+                    return _parse_topics(data["topics"])
+                if isinstance(data, list):
+                    return _parse_topics(data)
+            except Exception as exc:
+                raise RuntimeError(
+                    f"Error loading shared topics file '{candidate}': {exc}"
+                ) from exc
+
+    return []
 
 
 def _parse_topics(raw_topics: list[dict] | None) -> list[TopicMap]:
@@ -200,6 +268,17 @@ def _parse_topics(raw_topics: list[dict] | None) -> list[TopicMap]:
     return result
 
 
+def _parse_subscriptions(raw_subs: list[dict] | None) -> list[MqttSubscription]:
+    """Parse raw MQTT subscription list into MqttSubscription dataclass instances."""
+    if not raw_subs:
+        return []
+    result: list[MqttSubscription] = []
+    for s in raw_subs:
+        if isinstance(s, dict):
+            result.append(MqttSubscription(**s))
+    return result
+
+
 # --------------------------------------------------------------------------
 # Secret-Overlays: getrennte Datei + Env-Vars, damit MQTT-Login NICHT im Repo landet
 # --------------------------------------------------------------------------
@@ -215,31 +294,22 @@ _SECRETS_PATHS = (
 
 
 def _apply_secrets_file(cfg: Config) -> None:
-    """Überlagert cfg mit Werten aus der ersten existierenden Secret-Datei.
-
-    Format identisch zur Haupt-Config, meist nur ein Ausschnitt:
-
-        mqtt:
-          username: lora
-          password: super-secret
-
-    Pfad kann per Env `LORA_BRIDGE_SECRETS` überschrieben werden.
-    """
+    """Applies overlay settings from the first existing secrets file."""
     candidates = [os.environ.get("LORA_BRIDGE_SECRETS", "")] + list(_SECRETS_PATHS)
     for path in candidates:
-        print(f"Checking {path}")
         if path and Path(path).is_file():
             try:
-                print(f"Found secrets file {path}")
                 data = yaml.safe_load(Path(path).read_text()) or {}
                 _apply(cfg, data)
                 if "topics" in data:
                     cfg.topics = _parse_topics(data["topics"])
                 if "sensors" in data:
                     cfg.sensors = [SensorSpec(**s) for s in data["sensors"]]
+                if "mqtt_subscriptions" in data:
+                    cfg.mqtt_subscriptions = _parse_subscriptions(data["mqtt_subscriptions"])
             except Exception as exc:
                 raise RuntimeError(
-                    f"Fehler beim Laden der Secret-Datei {path}: {exc}"
+                    f"Error loading secrets file {path}: {exc}"
                 ) from exc
             break
 
@@ -258,12 +328,10 @@ _ENV_MAP = {
 
 def _apply_env_overrides(cfg: Config) -> None:
     for env_var, (section, key, caster) in _ENV_MAP.items():
-        print(f"Checking {section}.{key}")
         value = os.environ.get(env_var)
         if value is None or value == "":
             continue
         try:
-            print(f"Settings {key}={value}")
             casted = caster(value)
         except Exception:
             continue

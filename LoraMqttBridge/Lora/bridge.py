@@ -11,6 +11,7 @@ from .ack_manager import AckManager
 from .config_loader import Config
 from .lora_driver import LoraRadio
 from .mqtt_client import MqttBridge
+from .mqtt_forwarder import MqttForwarder
 from .payload_codec import PayloadCodec
 from .protocol import Frame, FrameType, PROTOCOL_VERSION, build_ack, build_mqtt
 from .topic_router import TopicRouter
@@ -19,10 +20,11 @@ log = logging.getLogger(__name__)
 
 
 class Bridge:
-    """Connects LoRa <-> MQTT using the topic router and payload codec.
+    """Connects LoRa <-> MQTT using the topic router, payload codec, and forwarder.
 
     - MQTT messages on configured TX topics are encoded into LoRa binary frames.
     - LoRa frames of type MQTT are decoded and published to configured RX topics.
+    - MQTT subscriptions can query JSON and forward to LoRa or local MQTT.
     - ACK frames are forwarded to the AckManager.
     - Duplicates (retry) are filtered based on the (topic_id, seq) pair.
     """
@@ -33,6 +35,7 @@ class Bridge:
         self.mqtt = mqtt
         self.router = TopicRouter(cfg.topics)
         self.codec = PayloadCodec()
+        self.forwarder = MqttForwarder(cfg.mqtt_subscriptions, bridge=self, mqtt=self.mqtt)
         self.ack = AckManager(cfg.ack, sender=self._raw_send)
         self._seen: dict[tuple[int, int], float] = {}
         self._stop = threading.Event()
@@ -41,15 +44,17 @@ class Bridge:
     # ------------------------------------------------------------
     def start(self) -> None:
         self.ack.start()
-        # MQTT subscriptions für TX-Richtung
+        # MQTT subscriptions for TX direction from topic router
         for topic, qos in self.router.subscribe_targets():
             self.mqtt.subscribe(topic, qos)
+        # MQTT subscriptions from configured forwarder rules
+        self.forwarder.start()
         self.mqtt.set_on_message(self._on_mqtt)
         self._rx_thread = threading.Thread(target=self._rx_loop,
                                            name="lora-rx", daemon=True)
         self._rx_thread.start()
-        log.info("Bridge gestartet: %d Topics, ACK-Manager läuft",
-                 len(self.cfg.topics))
+        log.info("Bridge gestartet: %d Topics, %d Forwarder-Subscriptions, ACK-Manager läuft",
+                 len(self.cfg.topics), len(self.cfg.mqtt_subscriptions))
 
     def stop(self) -> None:
         self._stop.set()
@@ -68,6 +73,9 @@ class Bridge:
 
     # ------------------------------------------------------------
     def _on_mqtt(self, topic: str, payload: bytes) -> None:
+        # Process any configured local forwarder subscription rules
+        self.forwarder.handle_message(topic, payload)
+
         entry = self.router.id_by_topic(topic)
         if entry is None:
             return
@@ -155,7 +163,7 @@ class Bridge:
 
     # ------------------------------------------------------------ helpers for other tasks
     def send_mqtt_over_lora(self, topic_id: int, payload: Any, reliable: bool) -> None:
-        """Encode payload and send over LoRa for a given topic ID."""
+        """Encode payload via PayloadCodec and send over LoRa for a given topic ID."""
         entry = self.router.topic_by_id(topic_id)
         if entry is not None:
             try:
@@ -172,6 +180,19 @@ class Bridge:
 
         seq = self.ack.next_seq()
         frame = build_mqtt(seq, topic_id, lora_payload, ack_req=reliable)
+        if reliable:
+            self.ack.send_reliable(frame)
+        else:
+            self.ack.send_fire_and_forget(frame)
+
+    def send_raw_lora(self, topic_id: int, payload: bytes, reliable: bool) -> None:
+        """Send a pre-built byte array over LoRa, bypassing PayloadCodec entirely.
+
+        Used when a jq expression already produces the final binary payload
+        (e.g. via dataconvert.jq helpers u8/i8/be16/be32).
+        """
+        seq = self.ack.next_seq()
+        frame = build_mqtt(seq, topic_id, payload, ack_req=reliable)
         if reliable:
             self.ack.send_reliable(frame)
         else:

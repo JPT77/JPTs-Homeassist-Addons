@@ -35,6 +35,7 @@ RUN python3 -m pip install --no-cache-dir --break-system-packages \
 
 COPY entry.py /app/entry.py
 COPY config.yaml /app/config.yaml
+COPY topics.yaml /app/topics.yaml
 COPY Lora /app/Lora
 COPY run.sh /run.sh
 

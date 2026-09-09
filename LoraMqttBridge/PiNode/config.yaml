@@ -56,55 +56,80 @@ hotspot:
   ip_cidr: 192.168.50.1/24
 
 # ------- Topic-Mapping LoRa TopicID <-> MQTT-Topic ---------------------
-topics:
-  - id: 1
-    mqtt_topic: "solar/battery/soc"
-    direction: bidir
+# Topic and field mappings are merged in the shared topics.yaml (single source of truth)
+topics_file: topics.yaml
+
+# ------- Local MQTT Subscriptions & Forwarding (Pi Node) --------------
+# Subscribes to local Mosquitto topics, queries JSON, and forwards
+# either over LoRa (via target_topic_id) or to another local MQTT topic (target_mqtt_topic).
+mqtt_subscriptions:
+  - name: "bms_battery_soc"
+    source_topic: "bms/telemetry"
+    json_query: "battery.soc"   # Extracts nested property (e.g. {"battery": {"soc": 85.5}})
+    target_topic_id: 1          # Forwards over LoRa as Topic ID 1 (solar/battery/soc)
     qos: 1
     retained: true
-    fields:
-      - name: soc
-        type: float
-  - id: 2
-    mqtt_topic: "sensors/keller/pressure"
-    direction: bidir
+
+  - name: "inverter_power_to_battery"
+    source_topic: "solar/inverter/status"
+    json_query: "PAC"                       # Extracts inverter power
+    target_mqtt_topic: "battery/cmd/setpoint"
+    payload_template: '{"power": {value}}'
+    qos: 1
+    retained: false
+
+  - name: "powermeter_status"
+    # Subscribes to Tasmota telemetry, extracts Wi-Fi/MQTT counters.
+    # jq expression returns flat byte array [b0..b14] (15 bytes) → sent raw over LoRa.
+    # NOTE: Tasmota Time has no timezone; fromdateiso8601 fails without Z suffix → 0xFFFFFFFF sentinel.
+    #       Set Timeszone 0 (UTC) on tasmota
+    # TODO Warn if wrong TZ
+    source_topic: "tele/HichiIR/STATE"
+    json_query: |-
+      [
+        (.Time + "Z" | try (fromdateiso8601 - ("2020-01-01T00:00:00Z" | fromdateiso8601)) catch 4294967295 | u32 | be32[]),
+        (.UptimeSec | u32 | be32[]),
+        (.MqttCount | u8),
+        (.Wifi.Signal | . * -1 | u8),
+        (.Wifi.RSSI | u8),
+        (.Wifi.Downtime | duration_sec | u16 | be16[]),
+        (.Wifi.LinkCount | u16 | be16[])
+      ] | flatten
+    target_topic_id: 10
+    qos: 1
+    retained: false
+
+  - name: "powermeter_power"
+    # Subscribes to Tasmota discovery sensor data (energy meter).
+    source_topic: "tasmota/discovery/483FDA50C720/sensors"
+    json_query: |-
+      [
+        (.Time | try (fromdateiso8601 - ("2020-01-01T00:00:00Z" | fromdateiso8601)) catch 4294967295 | u32 | be32[]),
+        (.EMH.E_in  | . / 1000 | u16 | be16[]),
+        (.EMH.E_out | . / 1000 | u16 | be16[]),
+        (.EMH.Power | i16 | be16[])
+      ] | flatten
+    target_topic_id: 11
+    qos: 1
+    retained: false
+
+  - name: "powermeter_energy"
+    # Subscribes to Tasmota SENSOR topic (live power reading).
+    source_topic: "tele/HichiIR/SENSOR"
+    json_query: |-
+      [
+        (.Time | try (fromdateiso8601 - ("2020-01-01T00:00:00Z" | fromdateiso8601)) catch 4294967295 | u32 | be32[]),
+        (.EMH.E_in  | . / 1000 | u16 | be16[]),
+        (.EMH.E_out | . / 1000 | u16 | be16[]),
+        (.EMH.Power | i16 | be16[])
+      ] | flatten
+    target_topic_id: 11
     qos: 0
-    retained: true
-    fields:
-      - name: pressure
-        type: float
-  - id: 3
-    mqtt_topic: "sensors/keller/temperature_bmp"
-    direction: bidir
-    qos: 0
-    retained: true
-    fields:
-      - name: temperature
-        type: float
-  - id: 4
-    mqtt_topic: "sensors/keller/humidity"
-    direction: bidir
-    qos: 0
-    retained: true
-    fields:
-      - name: humidity
-        type: float
-  - id: 5
-    mqtt_topic: "sensors/keller/temperature_aht"
-    direction: bidir
-    qos: 0
-    retained: true
-    fields:
-      - name: temperature
-        type: float
-  - id: 6
-    mqtt_topic: "sensors/keller/wasserstand"
-    direction: bidir
-    qos: 0
-    retained: true
-    fields:
-      - name: wasserstand
-        type: float
+    retained: false
+
+
+
+
 
 # ------- Battery-Relay (2 MQTT-WiFi Topics -> MQTT-WiFi Akku) ----------
 battery_relay:
