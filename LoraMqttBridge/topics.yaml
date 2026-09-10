@@ -155,8 +155,7 @@ topics:
             timestamp: >
                 ._timestamp
                 - ("2020-01-01T00:00:00Z" | fromdateiso8601)
-            humidity: >
-                .humidity * 10 | round
+            humidity: .humidity * 10 | round
         lora2mqtt:
             Time: >
                 try (
@@ -165,5 +164,54 @@ topics:
                     | todateiso8601
                 )
                 catch Null
-            humidity: >
-                .humidity / 10
+            humidity: .humidity / 10
+
+  - id: 0
+    name: pi_system
+    mqtt_topic: "sys/pi/status"
+    direction: from_node
+    mqtt:
+        qos: 1
+        retained: true
+    lora:
+        reliable: true
+    fields:
+      - name: timestamp
+        type: uint32
+      - name: uptime
+        type: uint32
+      - name: cpu_load
+        type: uint8
+      - name: temperature
+        type: uint8
+      - name: memory_used
+        type: uint8
+      - name: disk_used
+        type: uint8
+      - name: wifi_signal
+        type: int8
+    transform:
+        mqtt2lora:
+            timestamp: >
+            ._timestamp
+            - ("2020-01-01T00:00:00Z" | fromdateiso8601)
+            uptime: .uptime
+            cpu_load: .cpu_load | round
+            temperature: .temperature | round
+            memory_used: .memory_used | round
+            disk_used: .disk_used | round
+            wifi_signal: .wifi_signal | round
+        lora2mqtt:
+            Time: >
+                try (
+                    .timestamp
+                    + ("2020-01-01T00:00:00Z" | fromdateiso8601)
+                    | todateiso8601
+                )
+                catch Null
+            uptime: .uptime
+            cpu_load: .cpu_load
+            temperature: .temperature
+            memory_used: .memory_used
+            disk_used: .disk_used
+            wifi_signal: .wifi_signal

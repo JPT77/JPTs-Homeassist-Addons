@@ -151,18 +151,16 @@ mqtt_outputs:
 # I²C nutzt BCM 2/3
 sensors:
   - kind: bmp280
-    name: keller_bmp280
+    name: keller_temperature
     i2c_bus: 1
     i2c_address: 0x77
     poll_interval_s: 300
-    topic: keller_temperature
 
   - kind: aht20
-    name: keller_aht20
+    name: keller_humidity
     i2c_bus: 1
     i2c_address: 0x38
     poll_interval_s: 300
-    topic: keller_humidity
 
 #  - kind: adc_ads1115     # oder: adc_mcp3008
 #    name: keller_wasserstand
@@ -181,4 +179,3 @@ sensors:
   - kind: system_status
     name: pi_system
     poll_interval_s: 300
-    topic: bridge/pi_system
