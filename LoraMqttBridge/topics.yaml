@@ -14,22 +14,15 @@
 #       - type: Data type for binary packing over LoRa (float, double, int8, uint8, int16, uint16, int32, uint32, bool, str)
 
 topics:
-  - id: 1
-    mqtt_topic: "solar/battery/soc"
-    direction: tx
-    qos: 1
-    retained: true
-    fields:
-      - name: soc
-        type: float
-
   # HichiIR powermeter – STATUS telemetry (tele/HichiIR/STATE)
   # Payload: 4+4+1+1+1+2+1 = 14 bytes
   - id: 10
-    mqtt_topic: "tele/HichiIR/STATE"
-    direction: tx          # pi_node → ha_gateway only
-    qos: 1
-    retained: true
+    direction: to_gateway
+    mqtt:
+        topic: "tele/HichiIR/STATE"
+        qos: 1
+    lora:
+        reliable: true
     fields:
       - name: timestamp        # uint32 – seconds since 2020-01-01T00:00:00Z; 0xFFFFFFFF = invalid
         type: uint32
@@ -37,7 +30,7 @@ topics:
         type: uint32
       - name: mqtt_count       # uint8 – MQTT reconnect count; 0xFF = invalid
         type: uint8
-      - name: wifi_signal_dbm  # int8 – dBm (negative); 0xFF = invalid
+      - name: wifi_signal_dbm  # uint8 – dBm (negative);
         type: uint8
       - name: wifi_rssi        # uint8 – RSSI percentage 0-100; 0xFF = invalid
         type: uint8
@@ -45,14 +38,43 @@ topics:
         type: uint16
       - name: wifi_link_count  # uint8 – number of re-associations; 0xFF = invalid
         type: uint8
+    transform:
+        mqtt2lora:
+            timestamp: >
+            .Time +"Z"
+            | try (
+                fromdateiso8601
+                - ("2020-01-01T00:00:00Z" | fromdateiso8601)
+                )
+            catch 4294967295
+            uptime: ".Uptime"
+            mqtt_count: ".MqttCount"
+            wifi_signal_dbm: ".Wifi/Signal"
+            wifi_rssi:  ".Wifi/RSSI"
+            wifi_downtime: ".Wifi/Downtime"
+            wifi_link_count: ".Wifi/LinkCount"
+        lora2mqtt:
+            Time: >
+                try (
+                    .timestamp
+                    + ("2020-01-01T00:00:00Z" | fromdateiso8601)
+                    | todateiso8601
+                )
+                catch Null
+                Uptime: ".uptime"
+                MqttCount: ".mqtt_count"
+                Wifi:
+                    Signal: ".wifi_signal_dbm"
+                    RSSI: ".wifi_rssi"
+                    Downtime: ".wifi_downtime"
+                    LinkCount: ".wifi_link_count"
 
   # HichiIR powermeter – ENERGY sensor (tele/HichiIR/SENSOR)
   # Payload: 4+2+2 = 8 bytes
   - id: 11
     mqtt_topic: "tele/HichiIR/SENSOR"
-    direction: tx          # pi_node → ha_gateway only
-    qos: 1
-    retained: true
+    direction: to_gateway
+    reliable: true
     fields:
       - name: timestamp        # uint32 – seconds since 2020-01-01T00:00:00Z; 0xFFFFFFFF = invalid
         type: uint32
@@ -60,3 +82,88 @@ topics:
         type: uint16
       - name: energy_out       # uint16 – exported energy in kWh (integer); 0xFFFF = invalid
         type: uint16
+    transform:
+        mqtt2lora:
+            timestamp: >
+                .Time
+                | try (
+                    fromdateiso8601
+                    - ("2020-01-01T00:00:00Z" | fromdateiso8601)
+                    )
+                catch 4294967295
+            energy_in: ".EMH.E_in / 1000"
+            energy_out: ".EMH.E_out / 1000"
+        lora2mqtt:
+            Time: >
+                try (
+                    .timestamp
+                    + ("2020-01-01T00:00:00Z" | fromdateiso8601)
+                    | todateiso8601
+                )
+                catch Null
+            energy_in: ".energy_in"
+            energy_out: ".energy_out"
+
+  - id: 20
+    name: keller_temp
+    mqtt_topic: "sensors/keller/temperature_bmp"
+    direction: from_node
+    mqtt:
+        qos: 1
+        retained: true
+    lora:
+        reliable: true
+    fields:
+      - name: timestamp
+        type: uint32
+      - name: temperature
+        type: int16
+    transform:
+        mqtt2lora:
+            timestamp: >
+                ._timestamp
+                - ("2020-01-01T00:00:00Z" | fromdateiso8601)
+            temperature: >
+                .temperature * 10 | round
+        lora2mqtt:
+            Time: >
+                try (
+                    .timestamp
+                    + ("2020-01-01T00:00:00Z" | fromdateiso8601)
+                    | todateiso8601
+                )
+                catch Null
+            temperature: >
+                .temperature / 10
+
+  - id: 21
+    name: keller_humidity
+    mqtt_topic: "sensors/keller/humidity_aht"
+    direction: from_node
+    mqtt:
+        qos: 1
+        retained: true
+    lora:
+        reliable: true
+    fields:
+      - name: timestamp
+        type: uint32
+      - name: humidity
+        type: int16
+    transform:
+        mqtt2lora:
+            timestamp: >
+                ._timestamp
+                - ("2020-01-01T00:00:00Z" | fromdateiso8601)
+            humidity: >
+                .humidity * 10 | round
+        lora2mqtt:
+            Time: >
+                try (
+                    .timestamp
+                    + ("2020-01-01T00:00:00Z" | fromdateiso8601)
+                    | todateiso8601
+                )
+                catch Null
+            humidity: >
+                .humidity / 10

@@ -62,83 +62,90 @@ topics_file: topics.yaml
 # ------- Local MQTT Subscriptions & Forwarding (Pi Node) --------------
 # Subscribes to local Mosquitto topics, queries JSON, and forwards
 # either over LoRa (via target_topic_id) or to another local MQTT topic (target_mqtt_topic).
+# source_topic: MQTT topic to subscribe to.
+# subscribe_qos: 0 - best effort, 1 min 1x, 2 exact 1x
+#
 mqtt_subscriptions:
-  - name: "bms_battery_soc"
-    source_topic: "bms/telemetry"
-    json_query: "battery.soc"   # Extracts nested property (e.g. {"battery": {"soc": 85.5}})
-    target_topic_id: 1          # Forwards over LoRa as Topic ID 1 (solar/battery/soc)
-    qos: 1
-    retained: true
-
-  - name: "inverter_power_to_battery"
-    source_topic: "solar/inverter/status"
-    json_query: "PAC"                       # Extracts inverter power
-    target_mqtt_topic: "battery/cmd/setpoint"
-    payload_template: '{"power": {value}}'
-    qos: 1
-    retained: false
-
-  - name: "powermeter_status"
-    # Subscribes to Tasmota telemetry, extracts Wi-Fi/MQTT counters.
-    # jq expression returns flat byte array [b0..b14] (15 bytes) → sent raw over LoRa.
-    # NOTE: Tasmota Time has no timezone; fromdateiso8601 fails without Z suffix → 0xFFFFFFFF sentinel.
-    #       Set Timeszone 0 (UTC) on tasmota
-    # TODO Warn if wrong TZ
+  - name: powermeter_status
     source_topic: "tele/HichiIR/STATE"
-    json_query: |-
-      [
-        (.Time + "Z" | try (fromdateiso8601 - ("2020-01-01T00:00:00Z" | fromdateiso8601)) catch 4294967295 | u32 | be32[]),
-        (.UptimeSec | u32 | be32[]),
-        (.MqttCount | u8),
-        (.Wifi.Signal | . * -1 | u8),
-        (.Wifi.RSSI | u8),
-        (.Wifi.Downtime | duration_sec | u16 | be16[]),
-        (.Wifi.LinkCount | u16 | be16[])
-      ] | flatten
     target_topic_id: 10
-    qos: 1
-    retained: false
+    subscribe_qos: 1
 
-  - name: "powermeter_power"
-    # Subscribes to Tasmota discovery sensor data (energy meter).
+  - name: powermeter_energy
     source_topic: "tasmota/discovery/483FDA50C720/sensors"
-    json_query: |-
-      [
-        (.Time | try (fromdateiso8601 - ("2020-01-01T00:00:00Z" | fromdateiso8601)) catch 4294967295 | u32 | be32[]),
-        (.EMH.E_in  | . / 1000 | u16 | be16[]),
-        (.EMH.E_out | . / 1000 | u16 | be16[]),
-        (.EMH.Power | i16 | be16[])
-      ] | flatten
     target_topic_id: 11
-    qos: 1
-    retained: false
+    subscribe_qos: 1
 
-  - name: "powermeter_energy"
-    # Subscribes to Tasmota SENSOR topic (live power reading).
+  - name: powermeter_power
     source_topic: "tele/HichiIR/SENSOR"
-    json_query: |-
-      [
-        (.Time | try (fromdateiso8601 - ("2020-01-01T00:00:00Z" | fromdateiso8601)) catch 4294967295 | u32 | be32[]),
-        (.EMH.E_in  | . / 1000 | u16 | be16[]),
-        (.EMH.E_out | . / 1000 | u16 | be16[]),
-        (.EMH.Power | i16 | be16[])
-      ] | flatten
-    target_topic_id: 11
-    qos: 0
-    retained: false
+    subscribe_qos: 0
+    sample:
+      Time: "2026-09-10T06:37:16"
+      EMH:
+        Power: -13
 
+  - name: battery_power
+    source_topic: "homeassistant/sensor/MSA-280425440006/quick/state"
+    subscribe_qos: 0
+    sample:
+      grid_on_p: -48.5
+      grid_off_p: 0.0
+      bat_sts: "charge"
+      bat_p: -48.5
+      soc: 31.40
+      heat: false
+      sys_pv_p: 0.0
+      sys_plug_p: -48.5
+      sys_bat_p: -48.5
+      sys_grid_p: 0.0
+      sys_load_p: -48.5
+      sys_sp_p: 0.0
+      sys_soc: 31.40
+      sys_heat: false
+      sys_pv2_p: 0.0
+      sys_eps_p: 0.0
 
+mqtt_outputs:
 
+  - name: battery_power_control
+    # Bei jeder neuen Nachricht einer dieser Subscriptions
+    # wird der Output neu berechnet.
+    trigger:
+      - powermeter_power
+      - battery_power
 
+    target_topic: "homeassistant/number/MSA-280425440006/power_ctrl/set"
 
-# ------- Battery-Relay (2 MQTT-WiFi Topics -> MQTT-WiFi Akku) ----------
-battery_relay:
-  enabled: true
-  sources:
-    - "home/loads/power"
-    - "solar/inverter/power"
-  target: "battery/cmd/setpoint"
-  payload_template: "{value}"
+    inputs:
+      powermeter:
+        subscription: powermeter_power
+        value: ".EMH.Power"
+        timestamp: ".Time"
+        max_age: 5
+      battery:
+        subscription: battery_power
+        value: ".bat_p"
+        timestamp: "$received_at"
+        max_age: 5
+
+    validation:
+      # 999999 bedeutet beim Powermeter: Messwert ungültig.
+      powermeter_error_value: 999999
+
+      # Prüft den vom Powermeter gelieferten Zeitstempel
+      # gegen die aktuelle PiNode-Zeit.
+      timezone:
+        max_offset: 3000       # 50 Minuten
+        on_error: latch        # Fehler bleibt gesetzt
+
+    expression: >
+      if .powermeter.error
+         or .powermeter.stale
+      then 0
+      else (
+        .powermeter.value + .battery.value
+        | limit(-800; 800)
+      )
 
 # ------- Sensoren am Pi (GPIO/I²C/SPI) ---------------------------------
 # I²C nutzt BCM 2/3
@@ -148,17 +155,15 @@ sensors:
     i2c_bus: 1
     i2c_address: 0x77
     poll_interval_s: 300
-    topic_id: 3 # temperature MQTT topic
-    mqtt_topic: "sensors/keller/{field}_bmp"
-    ack_req: false
+    topic: keller_temperature
+
   - kind: aht20
     name: keller_aht20
     i2c_bus: 1
     i2c_address: 0x38
     poll_interval_s: 300
-    topic_id: 5 # humidity MQTT topic
-    mqtt_topic: "sensors/keller/{field}_aht"
-    ack_req: false
+    topic: keller_humidity
+
 #  - kind: adc_ads1115     # oder: adc_mcp3008
 #    name: keller_wasserstand
 #    i2c_bus: 1
@@ -176,5 +181,4 @@ sensors:
   - kind: system_status
     name: pi_system
     poll_interval_s: 300
-    mqtt_topic: "sys/pi/{field}"
-    topic_id: 0     # 0 = nur MQTT lokal, nicht über LoRa
+    topic: bridge/pi_system
