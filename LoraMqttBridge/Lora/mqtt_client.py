@@ -33,8 +33,8 @@ class MqttBridge:
 
     # ------------------------------------------------------------
     def connect(self) -> None:
-        log.info("MQTT connect %s:%d as %s", self.cfg.host, self.cfg.port,
-                 self.cfg.client_id)
+        log.info("MQTT connect %s:%d as %s, user", self.cfg.host, self.cfg.port,
+                 self.cfg.client_id, self.cfg.username)
         self._client.connect_async(self.cfg.host, self.cfg.port, self.cfg.keepalive)
         self._client.loop_start()
 
