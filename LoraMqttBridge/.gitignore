@@ -1,6 +1,6 @@
 bin/
 include/
 lib/
-lib/64
+lib64
 secrets.*
 
