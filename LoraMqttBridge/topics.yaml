@@ -41,12 +41,12 @@ topics:
     transform:
         mqtt2lora:
             timestamp: >
-            .Time +"Z"
-            | try (
-                fromdateiso8601
-                - ("2020-01-01T00:00:00Z" | fromdateiso8601)
-                )
-            catch 4294967295
+                .Time +"Z"
+                | try (
+                    fromdateiso8601
+                    - ("2020-01-01T00:00:00Z" | fromdateiso8601)
+                  )
+                  catch 4294967295
             uptime: ".Uptime"
             mqtt_count: ".MqttCount"
             wifi_signal_dbm: ".Wifi/Signal"
@@ -59,29 +59,59 @@ topics:
                     .timestamp
                     + ("2020-01-01T00:00:00Z" | fromdateiso8601)
                     | todateiso8601
-                )
-                catch Null
-                Uptime: ".uptime"
-                MqttCount: ".mqtt_count"
-                Wifi:
-                    Signal: ".wifi_signal_dbm"
-                    RSSI: ".wifi_rssi"
-                    Downtime: ".wifi_downtime"
-                    LinkCount: ".wifi_link_count"
+                ) catch Null
+            Uptime: ".uptime"
+            MqttCount: ".mqtt_count"
+            Wifi:
+                Signal: ".wifi_signal_dbm"
+                RSSI: ".wifi_rssi"
+                Downtime: ".wifi_downtime"
+                LinkCount: ".wifi_link_count"
 
-  # HichiIR powermeter – ENERGY sensor (tele/HichiIR/SENSOR)
-  # Payload: 4+2+2 = 8 bytes
+  # HichiIR powermeter – POWER sensor (tele/HichiIR/SENSOR)
+  # Payload: 4+2 = 6 bytes
   - id: 11
     mqtt_topic: "tele/HichiIR/SENSOR"
     direction: to_gateway
+    reliable: false
+    fields:
+      - name: Time        # uint32 – seconds since 2020-01-01T00:00:00Z; 0xFFFFFFFF = invalid
+        type: uint32
+      - name: Power
+        type: int16
+    transform:
+        mqtt2lora:
+            timestamp: >
+                .Time
+                | try (
+                    fromdateiso8601
+                    - ("2020-01-01T00:00:00Z" | fromdateiso8601)
+                    )
+                catch 4294967295
+        lora2mqtt:
+            Time: >
+                try (
+                    .timestamp
+                    + ("2020-01-01T00:00:00Z" | fromdateiso8601)
+                    | todateiso8601
+                )
+                catch Null
+            energy_in: ".energy_in"
+            energy_out: ".energy_out"
+
+  # HichiIR powermeter – POWER sensor (tele/HichiIR/SENSOR)
+  # Payload: 4+2+2 = 8 bytes
+  - id: 12
+    mqtt_topic: "tasmota/discovery/483FDA50C720/sensors"
+    direction: to_gateway
     reliable: true
     fields:
-      - name: timestamp        # uint32 – seconds since 2020-01-01T00:00:00Z; 0xFFFFFFFF = invalid
+      - name: Time        # uint32 – seconds since 2020-01-01T00:00:00Z; 0xFFFFFFFF = invalid
         type: uint32
-      - name: energy_in        # uint16 – imported energy in kWh (integer); 0xFFFF = invalid
-        type: uint16
-      - name: energy_out       # uint16 – exported energy in kWh (integer); 0xFFFF = invalid
-        type: uint16
+      - name: energy_in
+        type: int16
+      - name: energy_out
+        type: int16
     transform:
         mqtt2lora:
             timestamp: >
@@ -193,8 +223,8 @@ topics:
     transform:
         mqtt2lora:
             timestamp: >
-            ._timestamp
-            - ("2020-01-01T00:00:00Z" | fromdateiso8601)
+                ._timestamp
+                - ("2020-01-01T00:00:00Z" | fromdateiso8601)
             uptime: .uptime
             cpu_load: .cpu_load | round
             temperature: .temperature | round
