@@ -49,7 +49,7 @@ def announce(cfg: Config, mqtt: MqttBridge) -> None:
     }
     announced = 0
     for topic in cfg.topics:
-        if topic.direction in ("rx", "bidir"):
+        if topic.role_direction(cfg.role) in ("rx", "bidir"):
             announced += _announce_topic(node_id, device, topic, mqtt)
     for spec in cfg.sensors:
         if spec.mqtt_topic:

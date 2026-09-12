@@ -1,8 +1,45 @@
-"""Config-Loader für YAML-Datei (Pi) und HA-Add-on Options (HA-Gateway)."""
+"""Config loader for YAML file (pi_node) and HA-Addon Options (ha_gateway).
+
+Supports two schema flavours for topics.yaml:
+
+Legacy flat schema (still accepted):
+    - id: 1
+      mqtt_topic: "foo/bar"
+      direction: tx | rx | bidir
+      qos: 1
+      retained: true
+      fields: [...]
+
+New nested schema (as used in the current PiNode/config.yaml + topics.yaml):
+    - id: 1
+      name: my_topic
+      mqtt_topic: "foo/bar"          # optional; may also be under mqtt.topic
+      direction: to_gateway | from_gateway | bidir
+      mqtt:
+        topic: "foo/bar"
+        qos: 1
+        retained: true
+      lora:
+        reliable: true
+      fields: [...]
+      transform:
+        mqtt2lora: { field: "<jq>" }
+        lora2mqtt: { field: "<jq>" }
+
+The direction values `to_gateway` and `from_gateway` describe the semantic
+flow (node -> gateway or gateway -> node) independent of the role.  The
+`role_direction()` helper on :class:`TopicMap` resolves the semantic
+direction to the local flow (`tx`, `rx`, or `bidir`) for a given role.
+
+The new `mqtt_outputs` section is also parsed: it lets the pi_node
+compute a control value out of one or more subscription streams and
+publish it to a local MQTT topic (see :class:`MqttOutput`).
+"""
 
 from __future__ import annotations
 
 import json
+import logging
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -10,7 +47,12 @@ from typing import Any
 
 import yaml
 
+log = logging.getLogger(__name__)
 
+
+# --------------------------------------------------------------------------
+# Dataclasses
+# --------------------------------------------------------------------------
 @dataclass
 class MqttConfig:
     host: str = "127.0.0.1"
@@ -67,13 +109,43 @@ class FieldSpec:
 
 
 @dataclass
+class TopicTransform:
+    """jq expressions to convert between MQTT JSON payloads and the ordered
+    binary field-dict used for LoRa.
+
+    Each mapping is `{binary_field_name: jq_expression}` for `mqtt2lora`
+    and `{mqtt_key: jq_expression}` for `lora2mqtt` (mqtt2lora yields the
+    field values consumed by :class:`PayloadCodec`, lora2mqtt yields the
+    JSON object that is published back to MQTT).
+    """
+    mqtt2lora: dict[str, Any] = field(default_factory=dict)
+    lora2mqtt: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
 class TopicMap:
     id: int
-    mqtt_topic: str
-    direction: str = "bidir"   # rx / tx / bidir
+    mqtt_topic: str = ""
+    direction: str = "bidir"          # tx | rx | bidir | to_gateway | from_gateway
     qos: int = 0
     retained: bool = False
+    reliable: bool = False
+    name: str | None = None
     fields: list[FieldSpec] = field(default_factory=list)
+    transform: TopicTransform = field(default_factory=TopicTransform)
+
+    def role_direction(self, role: str) -> str:
+        """Resolve semantic direction ('to_gateway'/'from_node') to local
+        flow direction ('tx' / 'rx' / 'bidir') for the given role.
+        """
+        d = (self.direction or "bidir").lower()
+        if d in ("tx", "rx", "bidir"):
+            return d
+        if d == "to_gateway":
+            return "tx" if role == "pi_node" else "rx"
+        if d == "from_gateway":
+            return "rx" if role == "pi_node" else "tx"
+        return "bidir"
 
 
 @dataclass
@@ -84,20 +156,15 @@ class BatteryRelay:
     target: str = "battery/cmd"
     payload_template: str = "{value}"
 
-
 @dataclass
 class SensorSpec:
-    kind: str                    # bmp280 / aht20 / adc_mcp3008 / adc_ads1115
+    kind: str                    # bmp280 / aht20
     name: str
     poll_interval_s: float = 30.0
     topic_id: int = 0
     mqtt_topic: str | None = None
     i2c_bus: int = 1
     i2c_address: int = 0x77
-    channel: int = 0             # ADC-Kanal
-    gain: float = 1.0            # ADS1115 gain
-    vref: float = 3.3            # MCP3008 Referenz
-    field: str = "value"         # z. B. temperature / pressure / humidity
     ack_req: bool = False
 
 
@@ -120,19 +187,58 @@ class ProbeConfig:
 class MqttSubscription:
     name: str = ""
     source_topic: str = ""
-    # json_query accepts either:
-    #   - A simple dot-notation path:  "battery.soc" or "Wifi.Signal"
-    #   - A full jq expression (single- or multi-line) that uses helpers from
-    #     dataconvert.jq (u8, u16, u32, i8, i16, i32, be16, be32, duration_sec).
-    #     When the query returns a flat int array [b0, b1, ...], it is sent as
-    #     raw bytes over LoRa, bypassing PayloadCodec.
+    # json_query accepts either dot-notation or a full jq expression.
     json_query: str | None = None
-    # extract: alternative to json_query – maps field names to dot-notation paths.
-    # Result is encoded by PayloadCodec using the field types from topics.yaml.
     extract: dict[str, str] = field(default_factory=dict)
-    target_topic_id: int | None = None          # Forwards over LoRa if set
-    target_mqtt_topic: str | None = None        # Forwards to local MQTT topic if set
-    payload_template: str | None = None         # Only used with target_mqtt_topic
+    target_topic_id: int | None = None
+    target_mqtt_topic: str | None = None
+    payload_template: str | None = None
+    # QoS the subscription is registered with on the local MQTT broker.
+    subscribe_qos: int = 0
+    # Publish QoS/retain if the subscription forwards to another MQTT topic.
+    qos: int = 0
+    retained: bool = False
+    # Optional example payload (used for documentation / mock feeders).
+    sample: Any = None
+
+
+@dataclass
+class OutputInput:
+    """Named input to an mqtt_output expression.
+
+    Extracts a value (and optional timestamp) from a source subscription
+    using dot-notation or a jq expression.  `max_age` in seconds; if the
+    extracted timestamp is older than that, the input is flagged `stale`.
+    """
+    subscription: str
+    value: str = "."
+    timestamp: str | None = None      # dot/jq expr; or "$received_at"
+    max_age: float | None = None
+
+
+@dataclass
+class TimezoneValidation:
+    max_offset: float = 3600.0
+    on_error: str = "latch"           # latch | drop
+
+
+@dataclass
+class OutputValidation:
+    powermeter_error_value: Any = None
+    timezone: TimezoneValidation | None = None
+
+
+@dataclass
+class MqttOutput:
+    """Derived output: recomputes a value whenever one of the trigger
+    subscriptions receives a new message, then publishes to `target_topic`.
+    """
+    name: str
+    trigger: list[str] = field(default_factory=list)
+    target_topic: str = ""
+    inputs: dict[str, OutputInput] = field(default_factory=dict)
+    validation: OutputValidation = field(default_factory=OutputValidation)
+    expression: str = "."
     qos: int = 0
     retained: bool = False
 
@@ -147,14 +253,18 @@ class Config:
     topics: list[TopicMap] = field(default_factory=list)
     topics_file: str | None = None
     mqtt_subscriptions: list[MqttSubscription] = field(default_factory=list)
+    mqtt_outputs: list[MqttOutput] = field(default_factory=list)
     battery_relay: BatteryRelay = field(default_factory=BatteryRelay)
     sensors: list[SensorSpec] = field(default_factory=list)
     hotspot: HotspotConfig = field(default_factory=HotspotConfig)
     probe: ProbeConfig = field(default_factory=ProbeConfig)
 
 
+# --------------------------------------------------------------------------
+# Helpers
+# --------------------------------------------------------------------------
 def _apply(dc: Any, data: dict) -> Any:
-    """Recursively apply a dict onto a dataclass object."""
+    """Recursively apply a dict onto a dataclass object (best-effort)."""
     for key, value in data.items():
         if not hasattr(dc, key):
             continue
@@ -166,6 +276,9 @@ def _apply(dc: Any, data: dict) -> Any:
     return dc
 
 
+# --------------------------------------------------------------------------
+# Load
+# --------------------------------------------------------------------------
 def load(path: str | os.PathLike | None = None) -> Config:
     """Loads config: YAML from `path` OR environment variable `LORA_BRIDGE_CONFIG`
     OR HA options `/data/options.json`.
@@ -187,7 +300,11 @@ def load(path: str | os.PathLike | None = None) -> Config:
     # Sync word may arrive as hex string (e.g. from HA UI)
     lora = raw.get("lora") or {}
     if isinstance(lora.get("sync_word"), str):
-        lora["sync_word"] = int(lora["sync_word"], 0)
+        try:
+            lora["sync_word"] = int(lora["sync_word"], 0)
+        except ValueError:
+            log.warning("Invalid sync_word %r – keeping default", lora["sync_word"])
+            lora.pop("sync_word", None)
 
     _apply(cfg, raw)
 
@@ -195,6 +312,7 @@ def load(path: str | os.PathLike | None = None) -> Config:
     cfg.topics = _load_topics(raw, path)
     cfg.sensors = [SensorSpec(**s) for s in raw.get("sensors", [])]
     cfg.mqtt_subscriptions = _parse_subscriptions(raw.get("mqtt_subscriptions", []))
+    cfg.mqtt_outputs = _parse_outputs(raw.get("mqtt_outputs", []))
 
     # ---- Secondary secret overlays (override YAML defaults) ----
     _apply_secrets_file(cfg)
@@ -202,6 +320,9 @@ def load(path: str | os.PathLike | None = None) -> Config:
     return cfg
 
 
+# --------------------------------------------------------------------------
+# Topic parsing
+# --------------------------------------------------------------------------
 def _load_topics(raw: dict, config_path: str | os.PathLike | None) -> list[TopicMap]:
     """Loads topics either from raw config dict, or from a shared topics.yaml file."""
     # 1. If explicit topics are present in raw config, use them
@@ -246,36 +367,122 @@ def _load_topics(raw: dict, config_path: str | os.PathLike | None) -> list[Topic
 
 
 def _parse_topics(raw_topics: list[dict] | None) -> list[TopicMap]:
-    """Parse raw topic dictionary list into TopicMap and FieldSpec dataclasses."""
+    """Parse raw topic dictionary list into TopicMap and FieldSpec dataclasses.
+
+    Accepts both the legacy flat schema and the new nested schema
+    (`mqtt: {topic, qos, retained}`, `lora: {reliable}`, `transform`).
+    """
     if not raw_topics:
         return []
     result: list[TopicMap] = []
     for t in raw_topics:
-        raw_fields = t.get("fields", [])
+        if not isinstance(t, dict) or "id" not in t:
+            log.warning("Skipping topic entry without id: %r", t)
+            continue
+
+        mqtt_block = t.get("mqtt") or {}
+        lora_block = t.get("lora") or {}
+
+        mqtt_topic = t.get("mqtt_topic") or mqtt_block.get("topic") or ""
+        qos = int(mqtt_block.get("qos", t.get("qos", 0)))
+        retained = bool(mqtt_block.get("retained", t.get("retained", False)))
+        reliable = bool(lora_block.get("reliable", t.get("reliable", False)))
+
+        # Parse fields
+        raw_fields = t.get("fields", []) or []
         field_specs: list[FieldSpec] = []
         for f in raw_fields:
             if isinstance(f, dict):
-                field_specs.append(
-                    FieldSpec(
-                        name=str(f.get("name", "")),
-                        type=str(f.get("type", "float")),
-                    )
-                )
+                field_specs.append(FieldSpec(
+                    name=str(f.get("name", "")),
+                    type=str(f.get("type", "float")),
+                ))
             elif isinstance(f, str):
                 field_specs.append(FieldSpec(name=f, type="float"))
-        item_data = {k: v for k, v in t.items() if k != "fields"}
-        result.append(TopicMap(**item_data, fields=field_specs))
+
+        # Parse transform section
+        transform_raw = t.get("transform") or {}
+        transform = TopicTransform(
+            mqtt2lora=dict(transform_raw.get("mqtt2lora") or {}),
+            lora2mqtt=dict(transform_raw.get("lora2mqtt") or {}),
+        )
+
+        result.append(TopicMap(
+            id=int(t["id"]),
+            mqtt_topic=str(mqtt_topic),
+            direction=str(t.get("direction", "bidir")),
+            qos=qos,
+            retained=retained,
+            reliable=reliable,
+            name=t.get("name"),
+            fields=field_specs,
+            transform=transform,
+        ))
     return result
 
 
+# --------------------------------------------------------------------------
+# Subscription & Output parsing
+# --------------------------------------------------------------------------
 def _parse_subscriptions(raw_subs: list[dict] | None) -> list[MqttSubscription]:
-    """Parse raw MQTT subscription list into MqttSubscription dataclass instances."""
     if not raw_subs:
         return []
+    valid_keys = set(MqttSubscription.__dataclass_fields__.keys())
     result: list[MqttSubscription] = []
     for s in raw_subs:
-        if isinstance(s, dict):
-            result.append(MqttSubscription(**s))
+        if not isinstance(s, dict):
+            continue
+        clean = {k: v for k, v in s.items() if k in valid_keys}
+        # Historic alias: "qos" alone was the subscribe QoS.  Prefer explicit
+        # subscribe_qos when present, otherwise fall back to qos.
+        if "subscribe_qos" not in clean and "qos" in clean:
+            clean["subscribe_qos"] = int(clean["qos"])
+        result.append(MqttSubscription(**clean))
+    return result
+
+
+def _parse_outputs(raw_outs: list[dict] | None) -> list[MqttOutput]:
+    if not raw_outs:
+        return []
+    result: list[MqttOutput] = []
+    for o in raw_outs:
+        if not isinstance(o, dict) or not o.get("name"):
+            continue
+
+        inputs: dict[str, OutputInput] = {}
+        for key, spec in (o.get("inputs") or {}).items():
+            if not isinstance(spec, dict):
+                continue
+            inputs[key] = OutputInput(
+                subscription=str(spec.get("subscription", "")),
+                value=str(spec.get("value", ".")),
+                timestamp=spec.get("timestamp"),
+                max_age=spec.get("max_age"),
+            )
+
+        val_raw = o.get("validation") or {}
+        tz_raw = val_raw.get("timezone")
+        timezone = None
+        if isinstance(tz_raw, dict):
+            timezone = TimezoneValidation(
+                max_offset=float(tz_raw.get("max_offset", 3600.0)),
+                on_error=str(tz_raw.get("on_error", "latch")),
+            )
+        validation = OutputValidation(
+            powermeter_error_value=val_raw.get("powermeter_error_value"),
+            timezone=timezone,
+        )
+
+        result.append(MqttOutput(
+            name=str(o["name"]),
+            trigger=list(o.get("trigger") or []),
+            target_topic=str(o.get("target_topic", "")),
+            inputs=inputs,
+            validation=validation,
+            expression=str(o.get("expression", ".")),
+            qos=int(o.get("qos", 0)),
+            retained=bool(o.get("retained", False)),
+        ))
     return result
 
 
@@ -294,7 +501,6 @@ _SECRETS_PATHS = (
 
 
 def _apply_secrets_file(cfg: Config) -> None:
-    """Applies overlay settings from the first existing secrets file."""
     candidates = [os.environ.get("LORA_BRIDGE_SECRETS", "")] + list(_SECRETS_PATHS)
     for path in candidates:
         if path and Path(path).is_file():
@@ -307,10 +513,10 @@ def _apply_secrets_file(cfg: Config) -> None:
                     cfg.sensors = [SensorSpec(**s) for s in data["sensors"]]
                 if "mqtt_subscriptions" in data:
                     cfg.mqtt_subscriptions = _parse_subscriptions(data["mqtt_subscriptions"])
+                if "mqtt_outputs" in data:
+                    cfg.mqtt_outputs = _parse_outputs(data["mqtt_outputs"])
             except Exception as exc:
-                raise RuntimeError(
-                    f"Error loading secrets file {path}: {exc}"
-                ) from exc
+                raise RuntimeError(f"Error loading secrets file {path}: {exc}") from exc
             break
 
 

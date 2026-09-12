@@ -33,7 +33,7 @@ class Bridge:
         self.cfg = cfg
         self.radio = radio
         self.mqtt = mqtt
-        self.router = TopicRouter(cfg.topics)
+        self.router = TopicRouter(cfg.topics, role=cfg.role)
         self.codec = PayloadCodec()
         self.forwarder = MqttForwarder(cfg.mqtt_subscriptions, bridge=self, mqtt=self.mqtt)
         self.ack = AckManager(cfg.ack, sender=self._raw_send)
@@ -76,15 +76,17 @@ class Bridge:
         # Process any configured local forwarder subscription rules
         self.forwarder.handle_message(topic, payload)
 
+        log.info(f"_on_mqtt(self, {str}, {payload})")
         entry = self.router.id_by_topic(topic)
+        log.info(f"entry: {entry}")
         if entry is None:
             return
-        if entry.direction not in ("tx", "bidir"):
+        if self.router.local_direction(entry) not in ("tx", "bidir"):
             return
         try:
             lora_payload = self.codec.encode(entry, payload)
         except Exception as exc:
-            log.error("Failed to encode MQTT payload for topic '%s': %s", topic, exc)
+            log.exception("Failed to encode MQTT payload for topic '%s': %s", topic, exc)
             return
         seq = self.ack.next_seq()
         frame = build_mqtt(seq, entry.id, lora_payload,

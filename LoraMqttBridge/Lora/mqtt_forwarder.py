@@ -91,8 +91,9 @@ def extract_query(data: Any, query: str | None) -> Any:
     if not query or query in (".", "value", ""):
         return data
 
-    # Normalize array index notation: foo[0] -> foo.0
-    normalized_query = re.sub(r"\[(\d+)\]", r".\1", query)
+    # Normalize array index notation: foo[0] -> foo.0, and strip an optional
+    # leading dot so ".foo.bar" behaves like "foo.bar".
+    normalized_query = re.sub(r"\[(\d+)\]", r".\1", query).lstrip(".")
     parts = normalized_query.split(".")
 
     current = data
@@ -212,9 +213,19 @@ class MqttForwarder:
         # 2. Forward to LoRa
         # ------------------------------------------------------------------
         if sub.target_topic_id is not None:
+            # Reliability preference: target topic's lora.reliable flag,
+            # falling back to the subscription's publish QoS.
+            reliable = sub.qos >= 1
+            target_entry = None
+            router = getattr(self.bridge, "router", None)
+            if router is not None:
+                target_entry = router.topic_by_id(sub.target_topic_id)
+                if target_entry is not None:
+                    reliable = bool(target_entry.reliable) or reliable
+
             if raw_bytes is not None:
                 # jq produced the complete binary payload – send raw bytes
-                self.bridge.send_raw_lora(sub.target_topic_id, raw_bytes, reliable=(sub.qos >= 1))
+                self.bridge.send_raw_lora(sub.target_topic_id, raw_bytes, reliable=reliable)
                 log.info(
                     "Forwarder '%s': MQTT '%s' -> LoRa topic ID %d: %d raw bytes",
                     sub.name or "sub",
@@ -227,7 +238,7 @@ class MqttForwarder:
                 self.bridge.send_mqtt_over_lora(
                     sub.target_topic_id,
                     extracted,
-                    reliable=(sub.qos >= 1),
+                    reliable=reliable,
                 )
                 log.info(
                     "Forwarder '%s': MQTT '%s' -> LoRa topic ID %d: %r",
