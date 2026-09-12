@@ -70,11 +70,39 @@ mqtt_subscriptions:
     source_topic: "tele/HichiIR/STATE"
     target_topic_id: 10
     subscribe_qos: 1
+    sample:
+      Time: "2026-09-12T14:13:29"
+      Uptime: "2T01:33:33"
+      UptimeSec: 178413
+      Heap: 20
+      SleepMode: "Dynamic"
+      Sleep: 50
+      LoadAvg: 19
+      MqttCount: 3
+      POWER: "OFF"
+      Wifi:
+        AP: 1
+        SSId: "devolo-bcf2af73a9e0"
+        BSSId: "BC:F2:AF:73:A9:E0"
+        Channel: 6
+        Mode: "11n"
+        RSSI: 50,
+        Signal: -75
+        LinkCount: 2
+        Downtime: "0T00:03:01"
 
   - name: powermeter_energy
     source_topic: "tasmota/discovery/483FDA50C720/sensors"
     target_topic_id: 11
     subscribe_qos: 1
+    sample:
+      sn:
+        Time: "2026-09-12T14:03:26"
+        EMH:
+          E_in: 586.455
+          E_out: 218.897
+          Power: -3
+      ver: 1
 
   - name: powermeter_power
     source_topic: "tele/HichiIR/SENSOR"
