@@ -42,8 +42,7 @@ class SensorReader:
         while not self._stop.is_set():
             try:
                 readings = self._backend.read()
-                for field, value in readings.items():
-                    self._cb(self.spec, field, value)
+                self._cb(self.spec, readings)
             except Exception as exc:
                 log.warning("Sensor %s Fehler: %s", self.spec.name, exc)
             time.sleep(self.spec.poll_interval_s)

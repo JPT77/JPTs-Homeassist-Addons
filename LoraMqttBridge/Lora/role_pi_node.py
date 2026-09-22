@@ -20,7 +20,7 @@ import time
 from .bridge import Bridge
 from .config_loader import Config
 from .discovery import announce as announce_discovery
-from .lora_driver import build_radio
+from .lora_mock import build_radio
 from .mqtt_client import MqttBridge
 from .sensors import SensorReader
 
@@ -107,15 +107,16 @@ def _install_battery_relay(cfg: Config, mqtt: MqttBridge):
 def _start_sensors(cfg: Config, bridge: Bridge, mqtt: MqttBridge) -> list[SensorReader]:
     readers: list[SensorReader] = []
 
-    def on_reading(spec, field, value):
-        reading = {field: value}
+    def on_reading(spec, readings):
+        for field, value in readings.items():
+            log.info("Sensor %s.%s = %s", spec.name, field, value)
+
         if spec.topic_id:
-            bridge.send_mqtt_over_lora(spec.topic_id, reading, reliable=spec.ack_req)
+            bridge.send_mqtt_over_lora(spec.topic_id, readings, reliable=spec.ack_req)
         if spec.mqtt_topic:
-            topic = spec.mqtt_topic.format(name=spec.name, field=field)
-            payload = json.dumps(reading).encode("utf-8")
+            topic = spec.mqtt_topic.format(name=spec.name)
+            payload = json.dumps(readings).encode("utf-8")
             mqtt.publish(topic, payload, qos=0, retain=True)
-        log.info("Sensor %s.%s = %s", spec.name, field, value)
 
     for spec in cfg.sensors:
         try:
