@@ -76,9 +76,9 @@ class Bridge:
         # Process any configured local forwarder subscription rules
         self.forwarder.handle_message(topic, payload)
 
-        log.info(f"_on_mqtt(self, {topic}, {payload})")
+        log.debug("_on_mqtt(self, %s, %s)", topic, payload)
         entry = self.router.id_by_topic(topic)
-        log.info(f"entry: {entry}")
+        log.debug("entry: %s", entry)
         if entry is None:
             return
         if self.router.local_direction(entry) not in ("tx", "bidir"):

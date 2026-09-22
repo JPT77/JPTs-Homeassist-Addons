@@ -300,4 +300,4 @@ class MqttOutputEngine:
             return
 
         self.mqtt.publish(out.target_topic, payload, qos=out.qos, retain=out.retained)
-        log.info("mqtt_output '%s' -> %s: %s", out.name, out.target_topic, payload)
+        log.debug("mqtt_output '%s' -> %s: %s", out.name, out.target_topic, payload)

@@ -2,7 +2,7 @@
 # Konfiguration für den Raspberry Pi Zero 2W (Rolle: pi_node)
 
 role: pi_node
-log_level: debug         # debug | info | normal
+log_level: info         # debug | info | normal
 
 mqtt:
   host: 127.0.0.1        # lokaler Mosquitto (auf dem Pi)

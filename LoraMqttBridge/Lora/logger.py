@@ -1,8 +1,9 @@
-"""Log-Level: debug / info / normal.
+"""Log-Level: debug / info / normal / lora / internal.
 
-- normal: nur Errors und Start-/Stop-Meldungen
-- info  : + jeder erfolgreich empfangene und gesendete Frame
-- debug : + fehlerhafte Frames, IRQ-Dumps, ACK-Retries, Config-Details
+Modi:
+- info / lora     : Modus 1 — Zeigt NUR LoRA-Pakete (TX Frame, RX Frame, ACK) & Systemmeldungen. Subskribierte 1s MQTT-Nachrichten spammen nicht.
+- debug / internal: Modus 2 — Zeigt die gesamte INTERNE VERARBEITUNG (sekündliche MQTT _on_mqtt Empfänge, Topic-Router entry Lookups, Forwarder und Nulleinspeisungs-Outputs).
+- normal          : Nur Errors und wichtige Start-/Stop-Meldungen.
 """
 
 from __future__ import annotations
@@ -11,11 +12,13 @@ import logging
 import sys
 from typing import Literal
 
-LogLevel = Literal["debug", "info", "normal"]
+LogLevel = Literal["debug", "info", "normal", "lora", "internal"]
 
 _LEVEL_MAP = {
     "debug": logging.DEBUG,
+    "internal": logging.DEBUG,
     "info": logging.INFO,
+    "lora": logging.INFO,
     "normal": logging.WARNING,
 }
 
