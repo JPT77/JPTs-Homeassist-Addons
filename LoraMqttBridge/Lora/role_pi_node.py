@@ -20,7 +20,7 @@ import time
 from .bridge import Bridge
 from .config_loader import Config
 from .discovery import announce as announce_discovery
-from .lora_mock import build_radio
+from .lora_driver import build_radio
 from .mqtt_client import MqttBridge
 from .sensors import SensorReader
 
