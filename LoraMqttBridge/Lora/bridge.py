@@ -69,6 +69,8 @@ class Bridge:
         except ValueError as exc:
             log.error("Frame-Encode Fehler: %s", exc)
             return False
+        if frame.ftype == FrameType.ACK:
+            log.info("TX ACK seq=%d tid=%d", frame.seq, frame.topic_id)
         return self.radio.send(data)
 
     # ------------------------------------------------------------
