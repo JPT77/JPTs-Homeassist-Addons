@@ -161,7 +161,7 @@ class SensorSpec:
     kind: str                    # bmp280 / aht20
     name: str
     poll_interval_s: float = 30.0
-    topic_id: int = 0
+    topic_id: int | None = None
     mqtt_topic: str | None = None
     i2c_bus: int = 1
     i2c_address: int = 0x77

@@ -116,7 +116,7 @@ def _start_sensors(cfg: Config, bridge: Bridge, mqtt: MqttBridge) -> list[Sensor
             readings["_timestamp"] = time.time()
 
         reliable = spec.ack_req
-        if spec.topic_id:
+        if spec.topic_id is not None:
             entry = bridge.router.topic_by_id(spec.topic_id)
             if entry is not None:
                 reliable = reliable or bool(entry.reliable)
