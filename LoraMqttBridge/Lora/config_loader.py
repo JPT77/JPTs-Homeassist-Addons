@@ -135,15 +135,15 @@ class TopicMap:
     transform: TopicTransform = field(default_factory=TopicTransform)
 
     def role_direction(self, role: str) -> str:
-        """Resolve semantic direction ('to_gateway'/'from_node') to local
-        flow direction ('tx' / 'rx' / 'bidir') for the given role.
+        """Resolve semantic direction ('to_gateway'/'from_node'/'from_gateway'/'to_node')
+        to local flow direction ('tx' / 'rx' / 'bidir') for the given role.
         """
         d = (self.direction or "bidir").lower()
         if d in ("tx", "rx", "bidir"):
             return d
-        if d == "to_gateway":
+        if d in ("to_gateway", "from_node"):
             return "tx" if role == "pi_node" else "rx"
-        if d == "from_gateway":
+        if d in ("from_gateway", "to_node"):
             return "rx" if role == "pi_node" else "tx"
         return "bidir"
 
