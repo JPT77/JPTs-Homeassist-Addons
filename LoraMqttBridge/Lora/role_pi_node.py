@@ -127,13 +127,17 @@ def _start_sensors(cfg: Config, bridge: Bridge, mqtt: MqttBridge) -> list[Sensor
             payload = json.dumps(readings).encode("utf-8")
             mqtt.publish(topic, payload, qos=0, retain=True)
 
-    for spec in cfg.sensors:
+    num_sensors = len(cfg.sensors)
+    for i, spec in enumerate(cfg.sensors):
         try:
-            r = SensorReader(spec, on_reading)
+            # Phasen-Offset (Staggering): Sensoren gleichmäßig über das Abfrageintervall verteilen
+            # z.B. 3 Sensoren mit 300s Intervall -> initial_delay: 0s, 100s, 200s
+            initial_delay = (i / num_sensors) * spec.poll_interval_s if num_sensors > 1 else 0.0
+            r = SensorReader(spec, on_reading, initial_delay_s=initial_delay)
             r.start()
             readers.append(r)
-            log.info("Sensor %s (%s) gestartet, poll=%.1fs",
-                     spec.name, spec.kind, spec.poll_interval_s)
+            log.info("Sensor %s (%s) gestartet, poll=%.1fs (Initial-Offset=%.1fs)",
+                     spec.name, spec.kind, spec.poll_interval_s, initial_delay)
         except Exception:
             log.exception("Konnte Sensor %s nicht starten", spec.name)
     return readers
