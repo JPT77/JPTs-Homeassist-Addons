@@ -109,10 +109,19 @@ def _start_sensors(cfg: Config, bridge: Bridge, mqtt: MqttBridge) -> list[Sensor
 
     def on_reading(spec, readings):
         for field, value in readings.items():
-            log.info("Sensor %s.%s = %s", spec.name, field, value)
+            if not field.startswith("_"):
+                log.info("Sensor %s.%s = %s", spec.name, field, value)
 
+        if "_timestamp" not in readings and "Time" not in readings:
+            readings["_timestamp"] = time.time()
+
+        reliable = spec.ack_req
         if spec.topic_id:
-            bridge.send_mqtt_over_lora(spec.topic_id, readings, reliable=spec.ack_req)
+            entry = bridge.router.topic_by_id(spec.topic_id)
+            if entry is not None:
+                reliable = reliable or bool(entry.reliable)
+            bridge.send_mqtt_over_lora(spec.topic_id, readings, reliable=reliable)
+
         if spec.mqtt_topic:
             topic = spec.mqtt_topic.format(name=spec.name)
             payload = json.dumps(readings).encode("utf-8")
