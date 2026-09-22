@@ -62,17 +62,50 @@ def be32:
     ];
 
 # --- Duration string parser ---------------------------------------------------
-# Parses Tasmota Wifi.Downtime format: "0T00:01:09" → total seconds (integer)
-# Returns null on parse failure (will become sentinel via u16/u32 clamping).
+# Parses Tasmota Wifi.Downtime / Uptime format: "0T00:01:09" or "00:01:09" -> total seconds (integer)
+# Also accepts numeric strings or raw numbers. Returns null on parse failure.
 
 def duration_sec:
-    try (
-        capture("(?<d>[0-9]+)T(?<h>[0-9]+):(?<m>[0-9]+):(?<s>[0-9]+)")
-        | (
-            (.d | tonumber) * 86400 +
-            (.h | tonumber) * 3600  +
-            (.m | tonumber) * 60    +
-            (.s | tonumber)
+    if . == null then null
+    elif type == "number" then .
+    elif type == "string" then
+        try (
+            capture("((?<d>[0-9]+)T)?(?<h>[0-9]+):(?<m>[0-9]+):(?<s>[0-9]+)")
+            | (
+                ((.d // "0") | tonumber) * 86400 +
+                (.h | tonumber) * 3600  +
+                (.m | tonumber) * 60    +
+                (.s | tonumber)
+            )
         )
-    )
-    catch null;
+        catch (try tonumber catch null)
+    else null end;
+
+# --- LoRa Epoch & Timestamp Helpers (Base epoch: 2020-01-01T00:00:00Z = 1577836800) ---
+
+def lora_epoch: 1577836800;
+
+# Converts ISO8601 string, unix timestamp number, or null into LoRa uint32 seconds since 2020-01-01.
+# Returns 4294967295 (0xFFFFFFFF) if input is null or conversion fails.
+def to_lora_time:
+    if . == null then 4294967295
+    elif type == "number" then
+        if . >= 1577836800 then (. - 1577836800 | u32)
+        else u32 end
+    elif type == "string" then
+        try (
+            (if endswith("Z") or contains("+") or (split("T")[1] // "" | contains("-")) then . else . + "Z" end)
+            | fromdateiso8601
+            | (. - 1577836800)
+            | u32
+        ) catch 4294967295
+    else 4294967295 end;
+
+# Converts LoRa uint32 seconds since 2020-01-01 back to ISO8601 string (or null if invalid / sentinel).
+def from_lora_time:
+    if . == null or . == 4294967295 then null
+    else
+        try (
+            (. + 1577836800) | todateiso8601
+        ) catch null
+    end;

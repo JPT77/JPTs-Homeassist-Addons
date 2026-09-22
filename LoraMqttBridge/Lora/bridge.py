@@ -76,7 +76,7 @@ class Bridge:
         # Process any configured local forwarder subscription rules
         self.forwarder.handle_message(topic, payload)
 
-        log.info(f"_on_mqtt(self, {str}, {payload})")
+        log.info(f"_on_mqtt(self, {topic}, {payload})")
         entry = self.router.id_by_topic(topic)
         log.info(f"entry: {entry}")
         if entry is None:
@@ -146,7 +146,7 @@ class Bridge:
         if entry is None:
             log.warning("No topic mapping for ID %d", frame.topic_id)
             return
-        if entry.direction not in ("rx", "bidir"):
+        if self.router.local_direction(entry) not in ("rx", "bidir"):
             log.debug("Topic %s is %s, RX frame ignored", entry.mqtt_topic, entry.direction)
             return
         try:

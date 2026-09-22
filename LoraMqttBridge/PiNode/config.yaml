@@ -93,7 +93,7 @@ mqtt_subscriptions:
 
   - name: powermeter_energy
     source_topic: "tasmota/discovery/483FDA50C720/sensors"
-    target_topic_id: 11
+    target_topic_id: 12
     subscribe_qos: 1
     sample:
       sn:
