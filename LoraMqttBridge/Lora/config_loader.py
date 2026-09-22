@@ -97,7 +97,7 @@ class LoraConfig:
 
 @dataclass
 class AckConfig:
-    timeout_ms: int = 800
+    timeout_ms: int = 1000
     max_retries: int = 4
     backoff_factor: float = 1.6
 
