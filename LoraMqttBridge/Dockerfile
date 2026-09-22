@@ -27,7 +27,8 @@ RUN python3 -m pip install --no-cache-dir --break-system-packages \
       paho-mqtt \
       PyYAML \
       gpiod \
-      spidev
+      spidev \
+      jq
 
 # do not install dependencies automatically (RPi.GPIO is replaced by lgpio)
 RUN python3 -m pip install --no-cache-dir --break-system-packages \
