@@ -187,7 +187,6 @@ sensors:
     i2c_address: 0x77
     poll_interval_s: 300
     topic_id: 20
-#    mqtt_topic: "sensors/keller/temperature_bmp"
 
   - kind: aht20
     name: keller_humidity
@@ -195,7 +194,6 @@ sensors:
     i2c_address: 0x38
     poll_interval_s: 300
     topic_id: 21
-#    mqtt_topic: "sensors/keller/humidity_aht"
 
 #  - kind: adc_ads1115     # oder: adc_mcp3008
 #    name: keller_wasserstand
@@ -214,3 +212,4 @@ sensors:
   - kind: system_status
     name: pi_system
     poll_interval_s: 300
+    topic_id: 0
