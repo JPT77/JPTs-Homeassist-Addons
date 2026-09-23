@@ -43,6 +43,16 @@ def i32:
         if . < 0 then 4294967296 + (. | floor) else . | floor end
     end;
 
+# --- Value clamping / limiting ------------------------------------------------
+
+def limit($min; $max):
+    if . == null then null
+    elif . < $min then $min
+    elif . > $max then $max
+    else . end;
+
+def clamp($min; $max): limit($min; $max);
+
 # --- Big-endian byte array helpers --------------------------------------------
 
 def be16:
