@@ -48,9 +48,10 @@ def announce(cfg: Config, mqtt: MqttBridge) -> None:
         "sw_version": "0.1.0",
     }
     announced = 0
+    rx_prefix = getattr(cfg, "rx_topic_prefix", "") or ""
     for topic in cfg.topics:
         if topic.role_direction(cfg.role) in ("rx", "bidir"):
-            announced += _announce_topic(node_id, device, topic, mqtt)
+            announced += _announce_topic(node_id, device, topic, mqtt, rx_prefix=rx_prefix)
     for spec in cfg.sensors:
         if spec.mqtt_topic:
             announced += _announce_sensor(node_id, device, spec, mqtt)
@@ -70,13 +71,14 @@ def _find_field_meta(field_name: str, topic_name: str) -> dict:
     return {}
 
 
-def _announce_topic(node_id: str, device: dict, topic: TopicMap, mqtt: MqttBridge) -> int:
+def _announce_topic(node_id: str, device: dict, topic: TopicMap, mqtt: MqttBridge, rx_prefix: str = "") -> int:
+    state_topic = f"{rx_prefix}{topic.mqtt_topic}"
     if not topic.fields:
-        obj_id = _slug(topic.mqtt_topic)
+        obj_id = _slug(state_topic)
         unique_id = f"{node_id}_{obj_id}"
         payload = {
             "name": topic.mqtt_topic.replace("/", " ").title(),
-            "state_topic": topic.mqtt_topic,
+            "state_topic": state_topic,
             "unique_id": unique_id,
             "device": device,
         }
@@ -89,16 +91,16 @@ def _announce_topic(node_id: str, device: dict, topic: TopicMap, mqtt: MqttBridg
     count = 0
     for field in topic.fields:
         if len(topic.fields) == 1:
-            obj_id = _slug(topic.mqtt_topic)
+            obj_id = _slug(state_topic)
             entity_name = topic.mqtt_topic.replace("/", " ").title()
         else:
-            obj_id = f"{_slug(topic.mqtt_topic)}_{_slug(field.name)}"
+            obj_id = f"{_slug(state_topic)}_{_slug(field.name)}"
             entity_name = f"{topic.mqtt_topic.replace('/', ' ').title()} {field.name.title()}"
 
         unique_id = f"{node_id}_{obj_id}"
         payload = {
             "name": entity_name,
-            "state_topic": topic.mqtt_topic,
+            "state_topic": state_topic,
             "value_template": f"{{{{ value_json.{field.name} }}}}",
             "unique_id": unique_id,
             "device": device,

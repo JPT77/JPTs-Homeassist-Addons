@@ -247,6 +247,7 @@ class MqttOutput:
 class Config:
     role: str = "pi_node"        # pi_node / ha_gateway
     log_level: str = "info"
+    rx_topic_prefix: str = ""    # e.g. "TEST/" for testing without overwriting production topics
     mqtt: MqttConfig = field(default_factory=MqttConfig)
     lora: LoraConfig = field(default_factory=LoraConfig)
     ack: AckConfig = field(default_factory=AckConfig)
@@ -529,6 +530,7 @@ _ENV_MAP = {
     "LORA_BRIDGE_MQTT_CLIENT_ID":  ("mqtt", "client_id", str),
     "LORA_BRIDGE_LOG_LEVEL":       (None, "log_level", str),
     "LORA_BRIDGE_ROLE":            (None, "role", str),
+    "LORA_BRIDGE_RX_TOPIC_PREFIX": (None, "rx_topic_prefix", str),
 }
 
 
