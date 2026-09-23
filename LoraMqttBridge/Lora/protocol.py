@@ -95,9 +95,10 @@ class Frame:
         if self.retry:
             flag_parts.append("RETRY")
         flags = ",".join(flag_parts) or "-"
+        hex_str = f" hex={self.payload.hex()}" if self.payload else ""
         return (
             f"Frame(v{self.version} {self.ftype.name} seq={self.seq} "
-            f"tid={self.topic_id} flags={flags} plen={len(self.payload)})"
+            f"tid={self.topic_id} flags={flags} plen={len(self.payload)}{hex_str})"
         )
 
 
