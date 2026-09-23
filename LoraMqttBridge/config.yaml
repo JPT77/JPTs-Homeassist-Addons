@@ -24,6 +24,7 @@ map:
 
 options:
   log_level: info
+  rx_topic_prefix: "TEST/"
   mqtt:
     host: core-mosquitto
     port: 1883
@@ -68,6 +69,7 @@ options:
 
 schema:
   log_level: list(debug|info|normal)
+  rx_topic_prefix: str?
   topics_file: str?
   mqtt_subscriptions:
     - name: str?

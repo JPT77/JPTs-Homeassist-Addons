@@ -247,6 +247,7 @@ class MqttOutput:
 class Config:
     role: str = "pi_node"        # pi_node / ha_gateway
     log_level: str = "info"
+    rx_topic_prefix: str = ""    # e.g. "TEST/" for testing without overwriting production topics
     mqtt: MqttConfig = field(default_factory=MqttConfig)
     lora: LoraConfig = field(default_factory=LoraConfig)
     ack: AckConfig = field(default_factory=AckConfig)

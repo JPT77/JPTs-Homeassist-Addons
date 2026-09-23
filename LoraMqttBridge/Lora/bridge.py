@@ -156,7 +156,25 @@ class Bridge:
         except Exception as exc:
             log.warning("Failed to decode LoRa payload for topic ID %d: %s", frame.topic_id, exc)
             return
-        self.mqtt.publish(entry.mqtt_topic, mqtt_payload,
+
+        prefix = getattr(self.cfg, "rx_topic_prefix", "") or ""
+        target_topic = f"{prefix}{entry.mqtt_topic}"
+
+        if isinstance(mqtt_payload, bytes):
+            payload_str = mqtt_payload.decode("utf-8", errors="replace")
+        else:
+            payload_str = str(mqtt_payload)
+
+        log.info(
+            "RX LoRa -> MQTT [%s] (seq=%d, len=%dB, qos=%d, retain=%s): %s",
+            target_topic,
+            frame.seq,
+            len(frame.payload),
+            entry.qos,
+            entry.retained,
+            payload_str,
+        )
+        self.mqtt.publish(target_topic, mqtt_payload,
                           qos=entry.qos, retain=entry.retained)
 
     def _gc_seen(self, now: float) -> None:

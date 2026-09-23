@@ -59,5 +59,23 @@ topics:
         type: float
 
 - id: 2
-    mqtt_topic: "sensors/keller/pressure"
-    direction: bidir
+  mqtt_topic: "sensors/keller/pressure"
+  direction: bidir
+```
+
+---
+
+## 3. Testing & Shared Broker Isolation (`rx_topic_prefix`)
+
+When running tests where both the Raspberry Pi Node and the Home Assistant Gateway connect to the **same MQTT broker**, publishing received messages back to the original topic could lead to feedback loops or accidental overwrites of live data.
+
+To prevent this, configure `rx_topic_prefix`:
+
+```yaml
+rx_topic_prefix: "TEST/"
+```
+
+- **Effect**: All incoming LoRa messages received and decoded by the bridge will be published to `TEST/<mqtt_topic>` (e.g. `TEST/tele/HichiIR/SENSOR`).
+- **Environment Variable**: `LORA_BRIDGE_RX_TOPIC_PREFIX="TEST/"`
+- **Home Assistant Discovery**: Automatically adjusts `state_topic` in MQTT discovery announcements to match the prefixed topic.
+- **Detailed Logging**: Every decoded message is logged with its topic, sequence number, payload length, QoS, retain flag, and reconstructed payload string.
