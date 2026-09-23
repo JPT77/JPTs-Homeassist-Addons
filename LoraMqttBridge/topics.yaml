@@ -59,23 +59,25 @@ topics:
 
   # HichiIR powermeter – POWER sensor (tele/HichiIR/SENSOR)
   # Payload: 4+2 = 6 bytes
-  - id: 11
-    mqtt_topic: "tele/HichiIR/SENSOR"
-    direction: to_gateway
-    reliable: false
-    fields:
-      - name: timestamp        # uint32 – seconds since 2020-01-01T00:00:00Z; 0xFFFFFFFF = invalid
-        type: uint32
-      - name: power
-        type: int16
-    transform:
-        mqtt2lora:
-            timestamp: ".Time | to_lora_time"
-            power: ".EMH.Power // .Power"
-        lora2mqtt:
-            Time: ".timestamp | from_lora_time"
-            EMH:
-                Power: ".power"
+  # NUR INTERNE VERARBEITUNG (Nulleinspeisung / battery_power_control).
+  # Nicht über LoRA senden, daher aus topics.yaml auskommentiert:
+  # - id: 11
+  #   mqtt_topic: "tele/HichiIR/SENSOR"
+  #   direction: to_gateway
+  #   reliable: false
+  #   fields:
+  #     - name: timestamp        # uint32 – seconds since 2020-01-01T00:00:00Z; 0xFFFFFFFF = invalid
+  #       type: uint32
+  #     - name: power
+  #       type: int16
+  #   transform:
+  #       mqtt2lora:
+  #           timestamp: ".Time | to_lora_time"
+  #           power: ".EMH.Power // .Power"
+  #       lora2mqtt:
+  #           Time: ".timestamp | from_lora_time"
+  #           EMH:
+  #               Power: ".power"
 
   # HichiIR powermeter – ENERGY sensor (tasmota/discovery/483FDA50C720/sensors)
   # Payload: 4+2+2 = 8 bytes
@@ -103,7 +105,7 @@ topics:
                     E_out: ".energy_out / 10"
 
   - id: 20
-    name: keller_temp
+    name: keller_temperature
     mqtt_topic: "sensors/keller/temperature_bmp"
     direction: from_node
     mqtt:
@@ -141,7 +143,7 @@ topics:
     transform:
         mqtt2lora:
             timestamp: "._timestamp | to_lora_time"
-            humidity: ".humidity * 10 | round"
+            humidity: "keller_humidity.humidity * 10 | round"
         lora2mqtt:
             Time: ".timestamp | from_lora_time"
             humidity: ".humidity / 10"

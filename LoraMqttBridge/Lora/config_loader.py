@@ -97,7 +97,7 @@ class LoraConfig:
 
 @dataclass
 class AckConfig:
-    timeout_ms: int = 800
+    timeout_ms: int = 1000
     max_retries: int = 4
     backoff_factor: float = 1.6
 
@@ -135,15 +135,15 @@ class TopicMap:
     transform: TopicTransform = field(default_factory=TopicTransform)
 
     def role_direction(self, role: str) -> str:
-        """Resolve semantic direction ('to_gateway'/'from_node') to local
-        flow direction ('tx' / 'rx' / 'bidir') for the given role.
+        """Resolve semantic direction ('to_gateway'/'from_node'/'from_gateway'/'to_node')
+        to local flow direction ('tx' / 'rx' / 'bidir') for the given role.
         """
         d = (self.direction or "bidir").lower()
         if d in ("tx", "rx", "bidir"):
             return d
-        if d == "to_gateway":
+        if d in ("to_gateway", "from_node"):
             return "tx" if role == "pi_node" else "rx"
-        if d == "from_gateway":
+        if d in ("from_gateway", "to_node"):
             return "rx" if role == "pi_node" else "tx"
         return "bidir"
 
@@ -161,7 +161,7 @@ class SensorSpec:
     kind: str                    # bmp280 / aht20
     name: str
     poll_interval_s: float = 30.0
-    topic_id: int = 0
+    topic_id: int | None = None
     mqtt_topic: str | None = None
     i2c_bus: int = 1
     i2c_address: int = 0x77

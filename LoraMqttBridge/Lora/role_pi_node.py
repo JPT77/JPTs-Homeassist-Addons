@@ -107,23 +107,42 @@ def _install_battery_relay(cfg: Config, mqtt: MqttBridge):
 def _start_sensors(cfg: Config, bridge: Bridge, mqtt: MqttBridge) -> list[SensorReader]:
     readers: list[SensorReader] = []
 
-    def on_reading(spec, field, value):
-        reading = {field: value}
-        if spec.topic_id:
-            bridge.send_mqtt_over_lora(spec.topic_id, reading, reliable=spec.ack_req)
-        if spec.mqtt_topic:
-            topic = spec.mqtt_topic.format(name=spec.name, field=field)
-            payload = json.dumps(reading).encode("utf-8")
-            mqtt.publish(topic, payload, qos=0, retain=True)
-        log.info("Sensor %s.%s = %s", spec.name, field, value)
+    def on_reading(spec, readings):
+        for field, value in readings.items():
+            if not field.startswith("_"):
+                log.info("Sensor %s.%s = %s", spec.name, field, value)
 
-    for spec in cfg.sensors:
+        if "_timestamp" not in readings and "Time" not in readings:
+            readings["_timestamp"] = time.time()
+
+        if spec.mqtt_topic:
+            topic = spec.mqtt_topic.format(name=spec.name)
+            payload = json.dumps(readings).encode("utf-8")
+            mqtt.publish(topic, payload, qos=0, retain=True)
+            if spec.topic_id is not None and bridge.router.id_by_topic(topic) is None:
+                reliable = spec.ack_req
+                entry = bridge.router.topic_by_id(spec.topic_id)
+                if entry is not None:
+                    reliable = reliable or bool(entry.reliable)
+                bridge.send_mqtt_over_lora(spec.topic_id, readings, reliable=reliable)
+        elif spec.topic_id is not None:
+            reliable = spec.ack_req
+            entry = bridge.router.topic_by_id(spec.topic_id)
+            if entry is not None:
+                reliable = reliable or bool(entry.reliable)
+            bridge.send_mqtt_over_lora(spec.topic_id, readings, reliable=reliable)
+
+    num_sensors = len(cfg.sensors)
+    for i, spec in enumerate(cfg.sensors):
         try:
-            r = SensorReader(spec, on_reading)
+            # Phasen-Offset (Staggering): Sensoren gleichmäßig über das Abfrageintervall verteilen
+            # z.B. 3 Sensoren mit 300s Intervall -> initial_delay: 0s, 100s, 200s
+            initial_delay = (i / num_sensors) * spec.poll_interval_s if num_sensors > 1 else 0.0
+            r = SensorReader(spec, on_reading, initial_delay_s=initial_delay)
             r.start()
             readers.append(r)
-            log.info("Sensor %s (%s) gestartet, poll=%.1fs",
-                     spec.name, spec.kind, spec.poll_interval_s)
+            log.info("Sensor %s (%s) gestartet, poll=%.1fs (Initial-Offset=%.1fs)",
+                     spec.name, spec.kind, spec.poll_interval_s, initial_delay)
         except Exception:
             log.exception("Konnte Sensor %s nicht starten", spec.name)
     return readers

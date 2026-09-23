@@ -19,9 +19,10 @@ SensorCallback = Callable[[SensorSpec, str, float], None]
 
 
 class SensorReader:
-    def __init__(self, spec: SensorSpec, callback: SensorCallback):
+    def __init__(self, spec: SensorSpec, callback: SensorCallback, initial_delay_s: float = 0.0):
         self.spec = spec
         self._cb = callback
+        self.initial_delay_s = initial_delay_s
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
         self._backend = None
@@ -39,14 +40,16 @@ class SensorReader:
             self._thread.join(timeout=2)
 
     def _run(self) -> None:
+        if self.initial_delay_s > 0:
+            if self._stop.wait(self.initial_delay_s):
+                return
         while not self._stop.is_set():
             try:
                 readings = self._backend.read()
-                for field, value in readings.items():
-                    self._cb(self.spec, field, value)
+                self._cb(self.spec, readings)
             except Exception as exc:
                 log.warning("Sensor %s Fehler: %s", self.spec.name, exc)
-            time.sleep(self.spec.poll_interval_s)
+            self._stop.wait(self.spec.poll_interval_s)
 
 
 # --------------------------------------------------------------------------

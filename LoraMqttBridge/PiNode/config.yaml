@@ -2,7 +2,7 @@
 # Konfiguration für den Raspberry Pi Zero 2W (Rolle: pi_node)
 
 role: pi_node
-log_level: debug         # debug | info | normal
+log_level: info         # debug | info | normal
 
 mqtt:
   host: 127.0.0.1        # lokaler Mosquitto (auf dem Pi)
@@ -66,6 +66,7 @@ topics_file: topics.yaml
 # subscribe_qos: 0 - best effort, 1 min 1x, 2 exact 1x
 #
 mqtt_subscriptions:
+  # send via Lora to HA every 5 mins, see topcis.yaml
   - name: powermeter_status
     source_topic: "tele/HichiIR/STATE"
     target_topic_id: 10
@@ -91,6 +92,7 @@ mqtt_subscriptions:
         LinkCount: 2
         Downtime: "0T00:03:01"
 
+  # send via Lora to HA, once a day? see topcis.yaml
   - name: powermeter_energy
     source_topic: "tasmota/discovery/483FDA50C720/sensors"
     target_topic_id: 12
@@ -104,6 +106,7 @@ mqtt_subscriptions:
           Power: -3
       ver: 1
 
+  # calculate homeassistant/number/MSA-280425440006/power_ctrl/set
   - name: powermeter_power
     source_topic: "tele/HichiIR/SENSOR"
     subscribe_qos: 0
@@ -112,6 +115,7 @@ mqtt_subscriptions:
       EMH:
         Power: -13
 
+  # calculate homeassistant/number/MSA-280425440006/power_ctrl/set
   - name: battery_power
     source_topic: "homeassistant/sensor/MSA-280425440006/quick/state"
     subscribe_qos: 0
@@ -135,9 +139,8 @@ mqtt_subscriptions:
 
 mqtt_outputs:
 
+  # calculate and trigger from tele/HichiIR/SENSOR and homeassistant/sensor/MSA-280425440006/quick/state
   - name: battery_power_control
-    # Bei jeder neuen Nachricht einer dieser Subscriptions
-    # wird der Output neu berechnet.
     trigger:
       - powermeter_power
       - battery_power
@@ -183,12 +186,14 @@ sensors:
     i2c_bus: 1
     i2c_address: 0x77
     poll_interval_s: 300
+    topic_id: 20
 
   - kind: aht20
     name: keller_humidity
     i2c_bus: 1
     i2c_address: 0x38
     poll_interval_s: 300
+    topic_id: 21
 
 #  - kind: adc_ads1115     # oder: adc_mcp3008
 #    name: keller_wasserstand
@@ -207,3 +212,4 @@ sensors:
   - kind: system_status
     name: pi_system
     poll_interval_s: 300
+    topic_id: 0

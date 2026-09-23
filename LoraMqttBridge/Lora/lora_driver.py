@@ -217,9 +217,13 @@ class LoraRadio:
         self._reader.start()
 
     def _drain_irq(self) -> None:
-        irq = self._lora.getIrqStatus()
-        if not irq:
+        if self._tx_lock.locked():
             return
+
+        irq = self._lora.getIrqStatus()
+        if not irq or (irq & IRQ_TX_DONE):
+            return
+
         if irq & IRQ_RX_DONE:
             length, offset = self._lora.getRxBufferStatus()
             payload = bytes(self._lora.readBuffer(offset, length)) if length else b""
