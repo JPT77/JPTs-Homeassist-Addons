@@ -115,17 +115,22 @@ def _start_sensors(cfg: Config, bridge: Bridge, mqtt: MqttBridge) -> list[Sensor
         if "_timestamp" not in readings and "Time" not in readings:
             readings["_timestamp"] = time.time()
 
-        reliable = spec.ack_req
-        if spec.topic_id is not None:
-            entry = bridge.router.topic_by_id(spec.topic_id)
-            if entry is not None:
-                reliable = reliable or bool(entry.reliable)
-            bridge.send_mqtt_over_lora(spec.topic_id, readings, reliable=reliable)
-
         if spec.mqtt_topic:
             topic = spec.mqtt_topic.format(name=spec.name)
             payload = json.dumps(readings).encode("utf-8")
             mqtt.publish(topic, payload, qos=0, retain=True)
+            if spec.topic_id is not None and bridge.router.id_by_topic(topic) is None:
+                reliable = spec.ack_req
+                entry = bridge.router.topic_by_id(spec.topic_id)
+                if entry is not None:
+                    reliable = reliable or bool(entry.reliable)
+                bridge.send_mqtt_over_lora(spec.topic_id, readings, reliable=reliable)
+        elif spec.topic_id is not None:
+            reliable = spec.ack_req
+            entry = bridge.router.topic_by_id(spec.topic_id)
+            if entry is not None:
+                reliable = reliable or bool(entry.reliable)
+            bridge.send_mqtt_over_lora(spec.topic_id, readings, reliable=reliable)
 
     num_sensors = len(cfg.sensors)
     for i, spec in enumerate(cfg.sensors):
