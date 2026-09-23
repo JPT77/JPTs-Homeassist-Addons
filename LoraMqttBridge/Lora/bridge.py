@@ -12,6 +12,7 @@ from .config_loader import Config
 from .lora_driver import LoraRadio
 from .mqtt_client import MqttBridge
 from .mqtt_forwarder import MqttForwarder
+from .mqtt_output_engine import MqttOutputEngine
 from .payload_codec import PayloadCodec
 from .protocol import Frame, FrameType, PROTOCOL_VERSION, build_ack, build_mqtt
 from .topic_router import TopicRouter
@@ -36,6 +37,12 @@ class Bridge:
         self.router = TopicRouter(cfg.topics, role=cfg.role)
         self.codec = PayloadCodec()
         self.forwarder = MqttForwarder(cfg.mqtt_subscriptions, bridge=self, mqtt=self.mqtt)
+        self.output_engine = MqttOutputEngine(
+            cfg.mqtt_outputs,
+            cfg.mqtt_subscriptions,
+            mqtt=self.mqtt,
+            topic_prefix=getattr(cfg, "rx_topic_prefix", "") or "",
+        )
         self.ack = AckManager(cfg.ack, sender=self._raw_send)
         self._seen: dict[tuple[int, int], float] = {}
         self._stop = threading.Event()
@@ -49,12 +56,13 @@ class Bridge:
             self.mqtt.subscribe(topic, qos)
         # MQTT subscriptions from configured forwarder rules
         self.forwarder.start()
+        self.output_engine.start()
         self.mqtt.set_on_message(self._on_mqtt)
         self._rx_thread = threading.Thread(target=self._rx_loop,
                                            name="lora-rx", daemon=True)
         self._rx_thread.start()
-        log.info("Bridge gestartet: %d Topics, %d Forwarder-Subscriptions, ACK-Manager läuft",
-                 len(self.cfg.topics), len(self.cfg.mqtt_subscriptions))
+        log.info("Bridge gestartet: %d Topics, %d Forwarder-Subscriptions, %d Outputs, ACK-Manager läuft",
+                 len(self.cfg.topics), len(self.cfg.mqtt_subscriptions), len(self.cfg.mqtt_outputs))
 
     def stop(self) -> None:
         self._stop.set()
@@ -75,8 +83,9 @@ class Bridge:
 
     # ------------------------------------------------------------
     def _on_mqtt(self, topic: str, payload: bytes) -> None:
-        # Process any configured local forwarder subscription rules
+        # Process any configured local forwarder subscription rules & outputs
         self.forwarder.handle_message(topic, payload)
+        self.output_engine.handle_message(topic, payload)
 
         log.debug("_on_mqtt(self, %s, %s)", topic, payload)
         entry = self.router.id_by_topic(topic)

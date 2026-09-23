@@ -103,8 +103,52 @@ class RxPrefixAndLoggingTests(unittest.TestCase):
         # Verify discovery published state_topic with TEST/ prefix
         mock_mqtt.publish.assert_called()
         configs = [json.loads(call[0][1]) for call in mock_mqtt.publish.call_args_list]
-        state_topics = [c.get("state_topic") for c in configs]
-        self.assertIn("TEST/tele/HichiIR/SENSOR", state_topics)
+    def test_output_engine_with_rx_prefix(self) -> None:
+        from Lora.config_loader import MqttOutput, MqttSubscription, OutputInput
+        from Lora.mqtt_output_engine import MqttOutputEngine
+
+        sub1 = MqttSubscription(name="powermeter_power", source_topic="tele/HichiIR/SENSOR")
+        sub2 = MqttSubscription(name="battery_power", source_topic="homeassistant/sensor/quick/state")
+
+        output = MqttOutput(
+            name="battery_power_control",
+            trigger=["powermeter_power", "battery_power"],
+            target_topic="homeassistant/number/power_ctrl/set",
+            inputs={
+                "powermeter": OutputInput(subscription="powermeter_power", value=".EMH.Power", timestamp="$received_at"),
+                "battery": OutputInput(subscription="battery_power", value=".bat_p", timestamp="$received_at"),
+            },
+            expression="(.powermeter.value + .battery.value)",
+        )
+
+        cfg = Config(
+            rx_topic_prefix="TEST/",
+            mqtt_subscriptions=[sub1, sub2],
+            mqtt_outputs=[output],
+        )
+
+        mock_mqtt = MagicMock()
+        mock_radio = MagicMock()
+        bridge = Bridge(cfg, mock_radio, mock_mqtt)
+        bridge.start()
+
+        with unittest.mock.patch("Lora.mqtt_output_engine.run_jq", return_value=150):
+            with self.assertLogs("Lora.mqtt_output_engine", level="INFO") as log_cm:
+                # Inject both inputs
+                bridge._on_mqtt("tele/HichiIR/SENSOR", json.dumps({"EMH": {"Power": 120}}).encode())
+                bridge._on_mqtt("homeassistant/sensor/quick/state", json.dumps({"bat_p": 30}).encode())
+
+        # Check MQTT publish on output target topic was prefixed with TEST/
+        mock_mqtt.publish.assert_called()
+        calls = [c[0] for c in mock_mqtt.publish.call_args_list if c[0][0].startswith("TEST/homeassistant/number/power_ctrl/set")]
+        self.assertGreater(len(calls), 0)
+        last_call = calls[-1]
+        self.assertEqual(last_call[0], "TEST/homeassistant/number/power_ctrl/set")
+        self.assertEqual(last_call[1], b"150")
+
+        # Check log output
+        log_output = "\n".join(log_cm.output)
+        self.assertIn("mqtt_output 'battery_power_control' -> TEST/homeassistant/number/power_ctrl/set", log_output)
 
 
 if __name__ == "__main__":

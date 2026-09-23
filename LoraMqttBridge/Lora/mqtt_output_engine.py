@@ -85,9 +85,11 @@ class MqttOutputEngine:
         outputs: list[MqttOutput],
         subscriptions: list[MqttSubscription],
         mqtt: "MqttBridge",
+        topic_prefix: str = "",
     ):
         self.outputs = outputs
         self.mqtt = mqtt
+        self.topic_prefix = topic_prefix or ""
 
         # subscription name -> source topic (needed to route incoming msgs)
         self._sub_topic: dict[str, str] = {}
@@ -299,5 +301,8 @@ class MqttOutputEngine:
             log.debug("mqtt_output '%s' has no target_topic; result=%r", out.name, result)
             return
 
-        self.mqtt.publish(out.target_topic, payload, qos=out.qos, retain=out.retained)
-        log.debug("mqtt_output '%s' -> %s: %s", out.name, out.target_topic, payload)
+        target_topic = f"{self.topic_prefix}{out.target_topic}"
+        payload_str = payload.decode("utf-8", errors="replace")
+        log.info("mqtt_output '%s' -> %s (qos=%d, retain=%s): %s",
+                 out.name, target_topic, out.qos, out.retained, payload_str)
+        self.mqtt.publish(target_topic, payload, qos=out.qos, retain=out.retained)
