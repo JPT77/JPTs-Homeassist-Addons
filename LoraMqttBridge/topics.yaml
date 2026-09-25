@@ -143,7 +143,7 @@ topics:
     transform:
         mqtt2lora:
             timestamp: "._timestamp | to_lora_time"
-            humidity: "keller_humidity.humidity * 10 | round"
+            humidity: ".humidity * 10 | round"
         lora2mqtt:
             Time: ".timestamp | from_lora_time"
             humidity: ".humidity / 10"
