@@ -170,13 +170,11 @@ mqtt_outputs:
         on_error: latch        # Fehler bleibt gesetzt
 
     expression: >
-      if .powermeter.error
-         or .powermeter.stale
+      if .powermeter.error or .powermeter.stale
       then 0
-      else (
-        .powermeter.value + .battery.value
-        | limit(-800; 800)
-      )
+      else
+        .powermeter.value + .battery.value | limit(-800; 800)
+      end
 
 # ------- Sensoren am Pi (GPIO/I²C/SPI) ---------------------------------
 # I²C nutzt BCM 2/3
