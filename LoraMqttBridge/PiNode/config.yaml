@@ -192,12 +192,12 @@ mqtt_outputs:
 # ------- Sensoren am Pi (GPIO/I²C/SPI) ---------------------------------
 # I²C nutzt BCM 2/3
 sensors:
-  - kind: bmp280
-    name: keller_temperature
-    i2c_bus: 1
-    i2c_address: 0x77
-    poll_interval_s: 300
-    topic_id: 20
+#  - kind: bmp280
+#    name: keller_temperature
+#    i2c_bus: 1
+#    i2c_address: 0x77
+#    poll_interval_s: 300
+#    topic_id: 20
 
   - kind: aht20
     name: keller_humidity

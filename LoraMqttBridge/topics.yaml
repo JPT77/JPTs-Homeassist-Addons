@@ -104,27 +104,27 @@ topics:
                     E_in: ".energy_in / 10"
                     E_out: ".energy_out / 10"
 
-  - id: 20
-    name: keller_temperature
-    mqtt_topic: "sensors/keller/temperature_bmp"
-    direction: from_node
-    mqtt:
-        qos: 1
-        retained: true
-    lora:
-        reliable: true
-    fields:
-      - name: timestamp
-        type: uint32
-      - name: temperature
-        type: int16
-    transform:
-        mqtt2lora:
-            timestamp: "._timestamp | to_lora_time"
-            temperature: ".temperature * 10 | round"
-        lora2mqtt:
-            Time: ".timestamp | from_lora_time"
-            temperature: ".temperature / 10"
+#  - id: 20
+#    name: keller_temperature
+#    mqtt_topic: "sensors/keller/temperature_bmp"
+#    direction: from_node
+#    mqtt:
+#        qos: 1
+#        retained: true
+#    lora:
+#        reliable: true
+#    fields:
+#      - name: timestamp
+#        type: uint32
+#      - name: temperature
+#        type: int16
+#    transform:
+#        mqtt2lora:
+#            timestamp: "._timestamp | to_lora_time"
+#            temperature: ".temperature * 10 | round"
+#        lora2mqtt:
+#            Time: ".timestamp | from_lora_time"
+#            temperature: ".temperature / 10"
 
   - id: 21
     name: keller_humidity
@@ -139,14 +139,18 @@ topics:
       - name: timestamp
         type: uint32
       - name: humidity
-        type: int16
+        type: int8
+      - name: temperature
+        type: int8
     transform:
         mqtt2lora:
             timestamp: "._timestamp | to_lora_time"
-            humidity: ".humidity * 10 | round"
+            humidity: ".humidity | round"
+            temperature: ".temperature | round"
         lora2mqtt:
             Time: ".timestamp | from_lora_time"
-            humidity: ".humidity / 10"
+            humidity: ".humidity"
+            temperature: ".temperature"
 
   - id: 0
     name: pi_system
