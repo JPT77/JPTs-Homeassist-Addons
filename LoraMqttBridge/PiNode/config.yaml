@@ -3,6 +3,7 @@
 
 role: pi_node
 log_level: info         # debug | info | normal
+rx_topic_prefix: "TEST/" # optionaler Präfix für Testzwecke
 
 mqtt:
   host: 127.0.0.1        # lokaler Mosquitto (auf dem Pi)
