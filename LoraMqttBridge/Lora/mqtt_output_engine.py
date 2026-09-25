@@ -275,6 +275,16 @@ class MqttOutputEngine:
         return None
 
     def _run_output(self, out: MqttOutput) -> None:
+        # Skip output calculation during startup if any required input has not received a message yet
+        for inp_spec in out.inputs.values():
+            if inp_spec.subscription not in self._cache:
+                log.debug(
+                    "mqtt_output '%s' waiting for initial message on '%s' before calculating",
+                    out.name,
+                    inp_spec.subscription,
+                )
+                return
+
         inputs = self._assemble_inputs(out)
 
         if not out.expression or out.expression.strip() == ".":
