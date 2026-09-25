@@ -123,19 +123,23 @@ class MqttOutputEngine:
         self._latched_errors: dict[str, bool] = {}
 
     # ------------------------------------------------------------------ API
-    def start(self) -> None:
-        """Ensure every source topic used by any output is subscribed."""
-        subscribed: set[str] = set()
-        for trigger_name in self._trigger_index.keys():
-            topic = self._sub_topic.get(trigger_name)
-            if topic and topic not in subscribed:
-                self.mqtt.subscribe(topic, qos=0)
-                subscribed.add(topic)
-        # Config-source topics (retained HA discovery style)
-        for cfg_topic in self._config_topic_index.keys():
-            if cfg_topic and cfg_topic not in subscribed:
-                self.mqtt.subscribe(cfg_topic, qos=0)
-                subscribed.add(cfg_topic)
+    def start(self, subscribe: bool = True) -> None:
+        """Ensure every source topic used by any output is subscribed.
+
+        Set `subscribe=False` when the caller manages paho subscriptions
+        itself; only logging/state is initialised.
+        """
+        if subscribe:
+            subscribed: set[str] = set()
+            for trigger_name in self._trigger_index.keys():
+                topic = self._sub_topic.get(trigger_name)
+                if topic and topic not in subscribed:
+                    self.mqtt.subscribe(topic, qos=0)
+                    subscribed.add(topic)
+            for cfg_topic in self._config_topic_index.keys():
+                if cfg_topic and cfg_topic not in subscribed:
+                    self.mqtt.subscribe(cfg_topic, qos=0)
+                    subscribed.add(cfg_topic)
         if self.outputs:
             log.info(
                 "MqttOutputEngine started: %d outputs, %d triggers, %d config sources",

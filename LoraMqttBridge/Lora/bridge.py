@@ -51,18 +51,43 @@ class Bridge:
     # ------------------------------------------------------------
     def start(self) -> None:
         self.ack.start()
-        # MQTT subscriptions for TX direction from topic router
-        for topic, qos in self.router.subscribe_targets():
-            self.mqtt.subscribe(topic, qos)
-        # MQTT subscriptions from configured forwarder rules
-        self.forwarder.start()
-        self.output_engine.start()
+
+        # IMPORTANT: install the message handler BEFORE any subscribe so
+        # we never miss the very first message due to a startup race.
         self.mqtt.set_on_message(self._on_mqtt)
+
+        # Collect all topics that need subscribing, deduplicating between
+        # the router (direction=tx/bidir topics from topics.yaml) and the
+        # forwarder (source_topic entries from mqtt_subscriptions).  For
+        # duplicates we keep the highest QoS so all handlers get a copy.
+        wanted: dict[str, int] = {}
+        for topic, qos in self.router.subscribe_targets():
+            wanted[topic] = max(qos, wanted.get(topic, 0))
+        for topic, subs in self.forwarder._subs_by_topic.items():
+            max_qos = max(s.subscribe_qos for s in subs)
+            wanted[topic] = max(max_qos, wanted.get(topic, 0))
+        # Config-source topics (retained HA discovery, etc.)
+        for topic in self.output_engine._config_topic_index.keys():
+            wanted[topic] = max(0, wanted.get(topic, 0))
+
+        for topic, qos in wanted.items():
+            self.mqtt.subscribe(topic, qos)
+            log.info("Bridge subscribed to MQTT '%s' (QoS %d)", topic, qos)
+
+        # Forwarder + output engine already had their source topics
+        # subscribed above; only run their internal state/logging setup.
+        self.forwarder.start(subscribe=False)
+        self.output_engine.start(subscribe=False)
+        log.info(
+            "Bridge: %d MQTT subscriptions, %d forwarder rules, %d outputs",
+            len(wanted), len(self.cfg.mqtt_subscriptions), len(self.cfg.mqtt_outputs),
+        )
+
         self._rx_thread = threading.Thread(target=self._rx_loop,
                                            name="lora-rx", daemon=True)
         self._rx_thread.start()
-        log.info("Bridge gestartet: %d Topics, %d Forwarder-Subscriptions, %d Outputs, ACK-Manager läuft",
-                 len(self.cfg.topics), len(self.cfg.mqtt_subscriptions), len(self.cfg.mqtt_outputs))
+        log.info("Bridge gestartet: %d Topics, ACK-Manager läuft",
+                 len(self.cfg.topics))
 
     def stop(self) -> None:
         self._stop.set()
@@ -83,17 +108,27 @@ class Bridge:
 
     # ------------------------------------------------------------
     def _on_mqtt(self, topic: str, payload: bytes, retained: bool = False) -> None:
-        # Process any configured local forwarder subscription rules & outputs
-        self.forwarder.handle_message(topic, payload)
+        log.debug("_on_mqtt: %s (%d B, retained=%s)", topic, len(payload), retained)
+
+        # 1) Configured forwarder rules & output engine.
+        forwarded = self.forwarder.handle_message(topic, payload)
         self.output_engine.handle_message(topic, payload)
 
+        # 2) Ignore retained messages for the direct router path – prevents
+        #    the bridge from replaying old retained data over LoRa at every
+        #    reconnect.
         if retained:
-            log.debug("Ignoring retained MQTT message on '%s' for LoRA TX", topic)
+            log.debug("Skipping retained '%s' for direct router TX", topic)
             return
 
-        log.debug("_on_mqtt(self, %s, %s)", topic, payload)
+        # 3) Direct router TX only if no forwarder rule already handled it
+        #    (avoids double-transmitting the same MQTT message over LoRa).
+        if forwarded:
+            log.debug("Topic '%s' already forwarded by MqttForwarder – "
+                      "skipping direct router TX", topic)
+            return
+
         entry = self.router.id_by_topic(topic)
-        log.debug("entry: %s", entry)
         if entry is None:
             return
         if self.router.local_direction(entry) not in ("tx", "bidir"):
@@ -105,11 +140,13 @@ class Bridge:
             return
         seq = self.ack.next_seq()
         frame = build_mqtt(seq, entry.id, lora_payload,
-                           ack_req=(entry.qos >= 1))
+                           ack_req=(entry.reliable or entry.qos >= 1))
         if frame.ack_req:
             self.ack.send_reliable(frame)
         else:
             self.ack.send_fire_and_forget(frame)
+        log.info("Direct TX: MQTT '%s' -> LoRa tid=%d (%d B)",
+                 topic, entry.id, len(lora_payload))
 
     # ------------------------------------------------------------
     def _rx_loop(self) -> None:

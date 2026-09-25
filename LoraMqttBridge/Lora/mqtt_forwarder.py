@@ -135,12 +135,25 @@ class MqttForwarder:
             if sub.source_topic:
                 self._subs_by_topic.setdefault(sub.source_topic, []).append(sub)
 
-    def start(self) -> None:
-        """Subscribe to all configured source topics on the local MQTT broker."""
+    def start(self, subscribe: bool = True) -> None:
+        """Subscribe to all configured source topics on the local MQTT broker.
+
+        Set `subscribe=False` when the caller (e.g. Bridge) already
+        manages the paho subscriptions itself – the forwarder then only
+        logs its state.
+        """
         for topic, subs in self._subs_by_topic.items():
-            max_qos = max(s.qos for s in subs)
-            self.mqtt.subscribe(topic, qos=max_qos)
-            log.info("MqttForwarder subscribed to local MQTT topic '%s' (QoS %d)", topic, max_qos)
+            names = ", ".join(s.name or "(unnamed)" for s in subs)
+            if subscribe:
+                # Use the SUBSCRIBE QoS, not the publish QoS.
+                max_qos = max(s.subscribe_qos for s in subs)
+                self.mqtt.subscribe(topic, qos=max_qos)
+                log.info(
+                    "MqttForwarder subscribed to '%s' (QoS %d) for [%s]",
+                    topic, max_qos, names,
+                )
+            else:
+                log.info("MqttForwarder rule '%s' → [%s]", topic, names)
 
     def handle_message(self, topic: str, payload: bytes) -> bool:
         """Handle incoming message on subscribed topic.
