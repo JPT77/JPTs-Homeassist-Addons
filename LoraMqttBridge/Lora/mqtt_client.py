@@ -71,7 +71,12 @@ class MqttBridge:
     def _on_msg(self, client, userdata, msg):
         if self._on_message:
             try:
-                self._on_message(msg.topic, msg.payload)
+                import inspect
+                sig = inspect.signature(self._on_message)
+                if len(sig.parameters) >= 3:
+                    self._on_message(msg.topic, msg.payload, bool(getattr(msg, "retain", False)))
+                else:
+                    self._on_message(msg.topic, msg.payload)
             except Exception:
                 log.exception("on_message Callback fehlgeschlagen für %s", msg.topic)
         else:

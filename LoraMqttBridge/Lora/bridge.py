@@ -82,10 +82,14 @@ class Bridge:
         return self.radio.send(data)
 
     # ------------------------------------------------------------
-    def _on_mqtt(self, topic: str, payload: bytes) -> None:
+    def _on_mqtt(self, topic: str, payload: bytes, retained: bool = False) -> None:
         # Process any configured local forwarder subscription rules & outputs
         self.forwarder.handle_message(topic, payload)
         self.output_engine.handle_message(topic, payload)
+
+        if retained:
+            log.debug("Ignoring retained MQTT message on '%s' for LoRA TX", topic)
+            return
 
         log.debug("_on_mqtt(self, %s, %s)", topic, payload)
         entry = self.router.id_by_topic(topic)
