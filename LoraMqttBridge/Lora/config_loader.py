@@ -229,6 +229,20 @@ class OutputValidation:
 
 
 @dataclass
+class OutputConfigSource:
+    """Retained MQTT topic that provides dynamic runtime parameters
+    (e.g. HA Discovery config with min/max/step/unit).
+
+    The engine subscribes to `topic` and, on every retained/live update,
+    parses the payload as JSON and extracts the values named in `extract`
+    using dot-notation or a jq expression.  The extracted mapping is
+    exposed to the jq expression under `.config`.
+    """
+    topic: str = ""
+    extract: dict[str, str] = field(default_factory=dict)
+
+
+@dataclass
 class MqttOutput:
     """Derived output: recomputes a value whenever one of the trigger
     subscriptions receives a new message, then publishes to `target_topic`.
@@ -241,6 +255,7 @@ class MqttOutput:
     expression: str = "."
     qos: int = 0
     retained: bool = False
+    config_source: OutputConfigSource | None = None
 
 
 @dataclass
@@ -474,6 +489,14 @@ def _parse_outputs(raw_outs: list[dict] | None) -> list[MqttOutput]:
             timezone=timezone,
         )
 
+        cfg_raw = o.get("config_source")
+        config_source: OutputConfigSource | None = None
+        if isinstance(cfg_raw, dict) and cfg_raw.get("topic"):
+            config_source = OutputConfigSource(
+                topic=str(cfg_raw["topic"]),
+                extract={k: str(v) for k, v in (cfg_raw.get("extract") or {}).items()},
+            )
+
         result.append(MqttOutput(
             name=str(o["name"]),
             trigger=list(o.get("trigger") or []),
@@ -483,6 +506,7 @@ def _parse_outputs(raw_outs: list[dict] | None) -> list[MqttOutput]:
             expression=str(o.get("expression", ".")),
             qos=int(o.get("qos", 0)),
             retained=bool(o.get("retained", False)),
+            config_source=config_source,
         ))
     return result
 

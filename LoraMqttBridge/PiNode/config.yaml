@@ -170,11 +170,23 @@ mqtt_outputs:
         max_offset: 3000       # 50 Minuten
         on_error: latch        # Fehler bleibt gesetzt
 
+    # Retained HA-Discovery: liefert min/max/step/unit für die Steuerung.
+    # Wird abonniert und als `.config` in die jq-Expression eingespeist.
+    config_source:
+      topic: "homeassistant/number/MSA-280425440006/power_ctrl/config"
+      extract:
+        min: ".min"
+        max: ".max"
+        step: ".step"
+
     expression: >
       if .powermeter.error or .powermeter.stale
       then 0
       else
-        .powermeter.value + .battery.value | limit(-800; 800)
+        (.powermeter.value + .battery.value) as $s
+        | if $s < .config.min then .config.min
+          elif $s > .config.max then .config.max
+          else $s end
       end
 
 # ------- Sensoren am Pi (GPIO/I²C/SPI) ---------------------------------

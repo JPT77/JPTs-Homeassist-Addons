@@ -111,6 +111,14 @@ class MqttOutputEngine:
             for trig in out.trigger:
                 self._trigger_index.setdefault(trig, []).append(out)
 
+        # config_source: topic -> outputs whose runtime parameters come from it
+        self._config_topic_index: dict[str, list[MqttOutput]] = {}
+        # output name -> last extracted {key: value} mapping
+        self._config_cache: dict[str, dict[str, Any]] = {}
+        for out in self.outputs:
+            if out.config_source and out.config_source.topic:
+                self._config_topic_index.setdefault(out.config_source.topic, []).append(out)
+
         # For latched error flags per output
         self._latched_errors: dict[str, bool] = {}
 
@@ -123,19 +131,41 @@ class MqttOutputEngine:
             if topic and topic not in subscribed:
                 self.mqtt.subscribe(topic, qos=0)
                 subscribed.add(topic)
+        # Config-source topics (retained HA discovery style)
+        for cfg_topic in self._config_topic_index.keys():
+            if cfg_topic and cfg_topic not in subscribed:
+                self.mqtt.subscribe(cfg_topic, qos=0)
+                subscribed.add(cfg_topic)
         if self.outputs:
-            log.info("MqttOutputEngine started: %d outputs, %d triggers",
-                     len(self.outputs), len(self._trigger_index))
+            log.info(
+                "MqttOutputEngine started: %d outputs, %d triggers, %d config sources",
+                len(self.outputs), len(self._trigger_index),
+                len(self._config_topic_index),
+            )
 
     def handle_message(self, topic: str, payload: bytes) -> bool:
         """Update caches for all subscriptions on `topic` and recompute
         every output whose trigger set contains at least one of them.
 
-        Returns True if at least one subscription cached the message.
+        Also updates the `config_source` cache for any output whose
+        runtime parameters come from `topic`.  Config-source updates
+        do **not** trigger a recompute on their own – outputs are only
+        recomputed on messages from `trigger` subscriptions.
+
+        Returns True if at least one subscription or config source
+        consumed the message.
         """
+        handled = False
+
+        # --- 1) config_source topics (retained HA discovery / etc.) ---
+        for out in self._config_topic_index.get(topic, []):
+            self._update_config_cache(out, payload)
+            handled = True
+
+        # --- 2) regular subscription topics ---
         subs = self._topic_to_subs.get(topic)
         if not subs:
-            return False
+            return handled
 
         parsed = self._parse_payload(payload)
         now = time.time()
@@ -157,6 +187,29 @@ class MqttOutputEngine:
             except Exception:
                 log.exception("mqtt_output '%s' failed", out.name)
         return True
+
+    def _update_config_cache(self, out: MqttOutput, payload: bytes) -> None:
+        """Parse a config_source payload and refresh the extracted map."""
+        cfg = out.config_source
+        if cfg is None:
+            return
+        parsed = self._parse_payload(payload)
+
+        extracted: dict[str, Any] = {}
+        if cfg.extract:
+            for key, query in cfg.extract.items():
+                extracted[key] = self._extract(parsed, query)
+        elif isinstance(parsed, dict):
+            # No `extract` given: expose the whole parsed dict.
+            extracted = dict(parsed)
+
+        # Only replace the cached map if we successfully got at least
+        # one non-None value – keeps the last known-good values on a
+        # broken retained update.
+        if any(v is not None for v in extracted.values()) or not self._config_cache.get(out.name):
+            self._config_cache[out.name] = extracted
+            log.info("mqtt_output '%s' config updated from %s: %s",
+                     out.name, cfg.topic, extracted)
 
     # -------------------------------------------------------------- internals
     def _parse_payload(self, raw: bytes) -> Any:
@@ -285,7 +338,19 @@ class MqttOutputEngine:
                 )
                 return
 
+        # Skip if a config_source is declared but no retained value has
+        # arrived yet – prevents publishing before min/max/etc. are known.
+        if out.config_source and out.name not in self._config_cache:
+            log.debug(
+                "mqtt_output '%s' waiting for config on '%s' before calculating",
+                out.name, out.config_source.topic,
+            )
+            return
+
         inputs = self._assemble_inputs(out)
+        # Expose retained config parameters (e.g. HA discovery min/max)
+        # as `.config` inside the jq expression.
+        inputs["config"] = dict(self._config_cache.get(out.name, {}))
 
         if not out.expression or out.expression.strip() == ".":
             result: Any = inputs
