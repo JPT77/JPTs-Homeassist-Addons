@@ -12,8 +12,7 @@ import os
 import sys
 import unittest
 from pathlib import Path
-
-from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock
 
 # Stub paho / paho.mqtt if not installed in current environment
@@ -51,7 +50,7 @@ class ConfigLoaderTests(unittest.TestCase):
     def test_topics_new_schema(self) -> None:
         by_id = {t.id: t for t in self.cfg.topics}
         self.assertIn(10, by_id)
-        self.assertIn(20, by_id)
+        self.assertIn(21, by_id)
         t10 = by_id[10]
         self.assertEqual(t10.mqtt_topic, "tele/HichiIR/STATE")
         self.assertEqual(t10.direction, "to_gateway")
@@ -62,11 +61,11 @@ class ConfigLoaderTests(unittest.TestCase):
         self.assertEqual(t10.role_direction("pi_node"), "tx")
         self.assertEqual(t10.role_direction("ha_gateway"), "rx")
 
-        t20 = by_id[20]
-        self.assertEqual(t20.direction, "from_node")
-        self.assertEqual(t20.role_direction("pi_node"), "tx")
-        self.assertEqual(t20.role_direction("ha_gateway"), "rx")
-        self.assertTrue(t20.retained)
+        t21 = by_id[21]
+        self.assertEqual(t21.direction, "from_node")
+        self.assertEqual(t21.role_direction("pi_node"), "tx")
+        self.assertEqual(t21.role_direction("ha_gateway"), "rx")
+        self.assertTrue(t21.retained)
 
     def test_transform_parsed(self) -> None:
         by_id = {t.id: t for t in self.cfg.topics}

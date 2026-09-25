@@ -1,6 +1,6 @@
 # Home Assistant Add-on manifest
 name: "LoRa MQTT Gateway"
-version: "0.4.6"
+version: "0.4.7"
 slug: "lora_mqtt_gateway"
 description: "LoRa <-> MQTT Gateway (SX1262). Konfiguration von Frequenz, MQTT, Topic-Mapping, ACK-Parametern und Log-Level direkt in der HA-UI."
 url: "https://github.com/JPT77/JPTs-Homeassist-Addons"
@@ -60,12 +60,12 @@ options:
     tx_test_payload: PROBE
   topics_file: "/config/topics.yaml"
   mqtt_subscriptions:
-    - name: "ha_power_to_lora"
-      source_topic: "homeassistant/sensor/power/state"
-      json_query: "state"
-      target_topic_id: 1
-      qos: 1
-      retained: true
+#    - name: "ha_power_to_lora"
+#      source_topic: "homeassistant/sensor/power/state"
+#      json_query: "state"
+#      target_topic_id: 1
+#      qos: 1
+#      retained: true
 
 schema:
   log_level: list(debug|info|normal)

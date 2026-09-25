@@ -108,11 +108,13 @@ class Bridge:
 
     # ------------------------------------------------------------
     def _on_mqtt(self, topic: str, payload: bytes, retained: bool = False) -> None:
-        log.debug("_on_mqtt: %s (%d B, retained=%s)", topic, len(payload), retained)
+        # Visibility: log every received message at INFO so users can see
+        # whether their subscription is actually delivering data.
+        log.info("MQTT RX '%s' (%d B, retained=%s)", topic, len(payload), retained)
 
         # 1) Configured forwarder rules & output engine.
         forwarded = self.forwarder.handle_message(topic, payload)
-        self.output_engine.handle_message(topic, payload)
+        oe_handled = self.output_engine.handle_message(topic, payload)
 
         # 2) Ignore retained messages for the direct router path – prevents
         #    the bridge from replaying old retained data over LoRa at every
@@ -121,10 +123,10 @@ class Bridge:
             log.debug("Skipping retained '%s' for direct router TX", topic)
             return
 
-        # 3) Direct router TX only if no forwarder rule already handled it
-        #    (avoids double-transmitting the same MQTT message over LoRa).
-        if forwarded:
-            log.debug("Topic '%s' already forwarded by MqttForwarder – "
+        # 3) Direct router TX only if no forwarder rule OR output-engine
+        #    rule already handled it (avoids double-transmitting).
+        if forwarded or oe_handled:
+            log.debug("Topic '%s' already handled by forwarder/output_engine – "
                       "skipping direct router TX", topic)
             return
 

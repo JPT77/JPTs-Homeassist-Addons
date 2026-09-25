@@ -121,6 +121,9 @@ class MqttOutputEngine:
 
         # For latched error flags per output
         self._latched_errors: dict[str, bool] = {}
+        # One-shot "waiting for ..." flags so INFO logs are not spammy
+        self._warned_missing: dict[str, bool] = {}
+        self._warned_no_config: dict[str, bool] = {}
 
     # ------------------------------------------------------------------ API
     def start(self, subscribe: bool = True) -> None:
@@ -333,22 +336,28 @@ class MqttOutputEngine:
 
     def _run_output(self, out: MqttOutput) -> None:
         # Skip output calculation during startup if any required input has not received a message yet
-        for inp_spec in out.inputs.values():
-            if inp_spec.subscription not in self._cache:
-                log.debug(
-                    "mqtt_output '%s' waiting for initial message on '%s' before calculating",
-                    out.name,
-                    inp_spec.subscription,
+        missing_inputs = [name for name, s in out.inputs.items()
+                          if s.subscription not in self._cache]
+        if missing_inputs:
+            if not self._warned_missing.get(out.name):
+                log.info(
+                    "mqtt_output '%s' waiting for first message on %s "
+                    "(subscription cache empty)",
+                    out.name, missing_inputs,
                 )
-                return
+                self._warned_missing[out.name] = True
+            return
 
         # Skip if a config_source is declared but no retained value has
         # arrived yet – prevents publishing before min/max/etc. are known.
         if out.config_source and out.name not in self._config_cache:
-            log.debug(
-                "mqtt_output '%s' waiting for config on '%s' before calculating",
-                out.name, out.config_source.topic,
-            )
+            if not self._warned_no_config.get(out.name):
+                log.info(
+                    "mqtt_output '%s' waiting for retained config on '%s' "
+                    "before publishing (no message yet)",
+                    out.name, out.config_source.topic,
+                )
+                self._warned_no_config[out.name] = True
             return
 
         inputs = self._assemble_inputs(out)

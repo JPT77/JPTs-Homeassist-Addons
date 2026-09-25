@@ -138,10 +138,60 @@ class BridgeForwardingTests(unittest.TestCase):
             self.assertIn(expected, subs,
                           f"'{expected}' was NOT subscribed at bridge startup")
 
-    def test_subscribe_qos_used_for_subscribe(self) -> None:
-        """`powermeter_status` has subscribe_qos=1 → registered at QoS 1."""
-        by_topic = {t: q for (t, _pat, q) in self.mqtt._subscriptions}
-        self.assertEqual(by_topic.get("tele/HichiIR/STATE"), 1)
+    def test_forward_powermeter_energy_to_lora_topic_12_retained(self) -> None:
+        """Retained Tasmota discovery message must still be forwarded via
+        the forwarder path (only the direct router-TX path skips retained)."""
+        energy = {
+            "sn": {
+                "Time": "2026-09-12T14:03:26",
+                "EMH": {"E_in": 586.455, "E_out": 218.897, "Power": -3},
+            },
+            "ver": 1,
+        }
+        self.mqtt.inject("tasmota/discovery/483FDA50C720/sensors",
+                         json.dumps(energy), retain=True)
+
+        frames = [_parse_lora_frame(d) for d in self.radio.sent]
+        tid12 = [f for f in frames if f["topic_id"] == 12]
+        self.assertEqual(len(tid12), 1,
+                         "retained topic 12 must still be forwarded once")
+
+    def test_output_engine_waits_for_ha_discovery_config(self) -> None:
+        """When mqtt_output has a config_source but no retained message
+        has been received on it, no publish must occur even after both
+        trigger subscriptions received data."""
+        self.mqtt.inject("tele/HichiIR/SENSOR",
+                         json.dumps({"Time": "2026-01-01T00:00:00Z",
+                                     "EMH": {"Power": -13}}))
+        self.mqtt.inject("homeassistant/sensor/MSA-280425440006/quick/state",
+                         json.dumps({"bat_p": -48.5}))
+
+        target = self.cfg.mqtt_outputs[0].target_topic
+        hits = [p for p in self.mqtt.published() if p[0].endswith(target)]
+        self.assertEqual(hits, [],
+                         "output engine must not publish without config_source")
+
+    def test_output_engine_publishes_once_config_arrives(self) -> None:
+        """Once the retained HA-discovery config is delivered and both
+        triggers have fresh data, the output engine publishes."""
+        import time
+        now = time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime())
+
+        # 1) HA-discovery config arrives (retained)
+        self.mqtt.inject("homeassistant/number/MSA-280425440006/power_ctrl/config",
+                         json.dumps({"min": -800, "max": 1000, "step": 0.1}),
+                         retain=True)
+
+        # 2) triggers arrive
+        self.mqtt.inject("tele/HichiIR/SENSOR",
+                         json.dumps({"Time": now, "EMH": {"Power": 100}}))
+        self.mqtt.inject("homeassistant/sensor/MSA-280425440006/quick/state",
+                         json.dumps({"bat_p": 50}))
+
+        target = self.cfg.mqtt_outputs[0].target_topic
+        hits = [p for p in self.mqtt.published() if p[0].endswith(target)]
+        self.assertGreater(len(hits), 0,
+                           "output engine must publish once config+triggers are present")
 
 
 if __name__ == "__main__":

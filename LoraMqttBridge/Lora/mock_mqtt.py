@@ -70,8 +70,12 @@ class InMemoryMqttBridge:
         self._on_message = cb
 
     # -- test helpers -----------------------------------------------------
-    def inject(self, topic: str, payload: bytes | str) -> bool:
-        """Deliver a message from the outside world to matching subscribers."""
+    def inject(self, topic: str, payload: bytes | str, retain: bool = False) -> bool:
+        """Deliver a message from the outside world to matching subscribers.
+
+        Supports ``retain=True`` so callers can simulate a retained message
+        (e.g. Tasmota discovery, HA-Discovery config) delivered on subscribe.
+        """
         if isinstance(payload, str):
             payload = payload.encode("utf-8")
         with self._lock:
@@ -80,7 +84,14 @@ class InMemoryMqttBridge:
             return False
         if self._on_message:
             try:
-                self._on_message(topic, payload)
+                # Match paho's dispatcher: if the callback accepts a 3rd
+                # positional parameter it receives the retain flag.
+                import inspect
+                sig = inspect.signature(self._on_message)
+                if len(sig.parameters) >= 3:
+                    self._on_message(topic, payload, retain)
+                else:
+                    self._on_message(topic, payload)
             except Exception:
                 log.exception("mock on_message failed for %s", topic)
         return True
