@@ -177,8 +177,8 @@ topics:
     transform:
         mqtt2lora:
             timestamp: "._timestamp | to_lora_time"
-            grid.etin: ".grid[0].etin"
-            grid.etout: ".grid[0].etout"
+            etin: ".grid[0].etin"
+            etout: ".grid[0].etout"
             bat_v: ".bat_v * 10 | round"
             bat_temp: ".bat_temp | round"
             soc: ".soc |round"
