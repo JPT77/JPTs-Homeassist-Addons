@@ -177,8 +177,8 @@ topics:
     transform:
         mqtt2lora:
             timestamp: "._timestamp | to_lora_time"
-            grid.etin: ".grid.etin"
-            grid.etout: ".grid.etout"
+            grid.etin: ".grid[?(@.type == 'grid_on')].etin"
+            grid.etout: ".grid[?(@.type == 'grid_on')].etout"
             bat_v: ".bat_v * 10 | round"
             bat_temp: ".bat_temp | round"
             soc: ".soc |round"
