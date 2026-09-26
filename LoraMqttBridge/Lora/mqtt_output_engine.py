@@ -391,6 +391,6 @@ class MqttOutputEngine:
 
         target_topic = f"{self.topic_prefix}{out.target_topic}"
         payload_str = payload.decode("utf-8", errors="replace")
-        log.info("mqtt_output '%s' -> %s (qos=%d, retain=%s): %s",
+        log.debug("mqtt_output '%s' -> %s (qos=%d, retain=%s): %s",
                  out.name, target_topic, out.qos, out.retained, payload_str)
         self.mqtt.publish(target_topic, payload, qos=out.qos, retain=out.retained)
