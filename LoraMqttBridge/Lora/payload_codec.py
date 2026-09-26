@@ -295,18 +295,24 @@ class PayloadCodec:
         If no fields are configured for the topic, the raw data is returned
         as bytes for backward compatibility.
         """
+        log.info(f"topic.fields={topic.fields}")
         if not topic.fields:
             if isinstance(data, bytes):
+                log.info(f"return {data}")
                 return data
             if isinstance(data, str):
+                log.info(f"return {data.encode("utf-8")}")
                 return data.encode("utf-8")
+            log.info(f"return {data.encode("utf-8")}")
             return str(data).encode("utf-8")
 
         values = self._prepare_encode_values(topic, data)
         packed_parts: list[bytes] = []
 
         total_fields = len(topic.fields)
+        log.info(f"total_fields {total_fields}")
         for idx, field in enumerate(topic.fields):
+            log.info(f"field {idx}: {field}")
             val = values.get(field.name)
             if val is None and total_fields == 1 and len(values) == 1:
                 val = next(iter(values.values()))
