@@ -143,10 +143,10 @@ def eval_transform_expr(expr: str, data: Any) -> Any:
     # Try jq library if available
     try:
         from .mqtt_forwarder import _is_jq_expression, run_jq
-        log.info(f"JQ {expr_str} on {data}")
+        log.debug(f"JQ {expr_str}")
         if _is_jq_expression(expr_str):
             try:
-                log.info(f"result {run_jq(expr_str, data)}")
+                log.debug(f"result {run_jq(expr_str, data)}")
                 return run_jq(expr_str, data)
             except Exception as exc:
                 log.debug("jq evaluation failed (%s) for %r, using fallback", exc, expr_str)
@@ -297,26 +297,21 @@ class PayloadCodec:
         If no fields are configured for the topic, the raw data is returned
         as bytes for backward compatibility.
         """
-        log.info(f"topic.fields={topic.fields}")
+        log.debug(f"topic.fields={topic.fields}")
         if not topic.fields:
             if isinstance(data, bytes):
-                log.info(f"return {data}")
                 return data
             if isinstance(data, str):
-                log.info(f"return {data.encode("utf-8")}")
                 return data.encode("utf-8")
-            log.info(f"return {data.encode("utf-8")}")
             return str(data).encode("utf-8")
 
         values = self._prepare_encode_values(topic, data)
         packed_parts: list[bytes] = []
 
         total_fields = len(topic.fields)
-        log.info(f"total_fields {total_fields}")
         for idx, field in enumerate(topic.fields):
-            log.info(f"field {idx}: {field}")
             val = values.get(field.name)
-            log.info(f"val: {val}")
+            log.debug(f"field {idx}: {field} = {val}")
             if val is None and total_fields == 1 and len(values) == 1:
                 val = next(iter(values.values()))
             if val is None:
@@ -375,8 +370,8 @@ class PayloadCodec:
         if topic.transform and topic.transform.mqtt2lora:
             values: dict[str, Any] = {}
             for field_name, expr in topic.transform.mqtt2lora.items():
-                log.info(f"field {field_name}, expr {expr}")
                 val = eval_transform_expr(expr, parsed_data)
+                log.debug(f"field {field_name}, expr {expr} = {val}")
                 if val is not None:
                     values[field_name] = val
 
