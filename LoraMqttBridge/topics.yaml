@@ -177,16 +177,18 @@ topics:
     transform:
         mqtt2lora:
             timestamp: "._timestamp | to_lora_time"
-            grid.etin: ".grid[?(@.type == 'grid_on')].etin"
-            grid.etout: ".grid[?(@.type == 'grid_on')].etout"
+            grid.etin: ".grid[0].etin"
+            grid.etout: ".grid[0].etout"
             bat_v: ".bat_v * 10 | round"
             bat_temp: ".bat_temp | round"
             soc: ".soc |round"
             rssi: ".rssi"
         lora2mqtt:
             time: ".timestamp | from_lora_time"
-            grid.etin: ".grid.etin"
-            grid.etout: ".grid.etout"
+            grid:
+              - type: "grid_on"
+                etin: ".etin"
+                etout: ".etout"
             bat_v: ".bat_v / 10"
             bat_temp: ".bat_temp"
             soc: ".soc"
