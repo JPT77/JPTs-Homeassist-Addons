@@ -143,9 +143,10 @@ def eval_transform_expr(expr: str, data: Any) -> Any:
     # Try jq library if available
     try:
         from .mqtt_forwarder import _is_jq_expression, run_jq
-        log.info(f"JQ {expr_str}")
+        log.info(f"JQ {expr_str} on {data}")
         if _is_jq_expression(expr_str):
             try:
+                log.info(f"result {run_jq(expr_str, data)}")
                 return run_jq(expr_str, data)
             except Exception as exc:
                 log.debug("jq evaluation failed (%s) for %r, using fallback", exc, expr_str)
