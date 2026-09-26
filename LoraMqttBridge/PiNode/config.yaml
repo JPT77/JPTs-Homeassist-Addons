@@ -138,6 +138,74 @@ mqtt_subscriptions:
       sys_pv2_p: 0.0
       sys_eps_p: 0.0
 
+  # send via Lora to HA every 5 mins, see topcis.yaml
+  - name: battery_energy
+    source_topic: "homeassistant/sensor/MSA-280425440006/device/state"
+    target_topic_id: 31
+    subscribe_qos: 0
+    sample:
+      # Netz- und Wechselrichter-Messwerte
+      grid:
+      # Netz ist aktiv
+      - type: grid
+        # Spannung [V]
+        v: 242.6
+        # Strom [A]
+        i: 0.22
+        # Netzfrequenz [Hz]
+        f: 50.05
+        # Wirkleistung [W]
+        # Negativ könnte je nach Gerät Einspeisung bedeuten
+        p: -32.5
+        # Blindleistung [var]
+        q: -0.3
+        # Energieeinspeicherung heute [Wh]
+        ein: 1868
+        # Energieabgabe heute [Wh]
+        eout: 231
+        # Gesamt-Energieeinspeicherung [Wh]
+        etin: 267987
+        # Gesamt-Energieabgabe [Wh]
+        etout: 205489
+      # Zustand/Messung bei abgeschaltetem Netz
+      - type: grid_off
+        v: 242.7
+        i: 0.13
+        f: 50.05
+        p: 0.0
+        q: -14.6
+        ein: 9
+        eout: 11
+        etin: 2263
+        etout: 2938
+      # Wechselrichter
+      - type: inv
+        v: 242.7
+        i: 0.21
+        p: -32.3
+        q: -15.0
+        ein: 1859
+        eout: 224
+        etin: 266763
+        etout: 205180
+      # Ladezustand der Batterie
+      bat_sts: charge
+      # Batteriespannung [V]
+      bat_v: 19.90
+      # Batteriestrom [A]
+      bat_i: 0.70
+      # Batterieleistung [W]
+      # Hier steht 0.0, obwohl Strom und Spannung vorhanden sind.
+      # Möglicherweise wird die Leistung anders berechnet oder nicht aktualisiert.
+      bat_p: 0.0
+      # Batterietemperatur [°C]
+      bat_temp: 29.3
+      # State of Charge [%]
+      soc: 95.00
+      # WLAN-/Funk-Signalstärke [dBm]
+      # Je näher an 0, desto stärker das Signal.
+      rssi: -28
+
 mqtt_outputs:
 
   # calculate and trigger from tele/HichiIR/SENSOR and homeassistant/sensor/MSA-280425440006/quick/state
@@ -192,13 +260,6 @@ mqtt_outputs:
 # ------- Sensoren am Pi (GPIO/I²C/SPI) ---------------------------------
 # I²C nutzt BCM 2/3
 sensors:
-#  - kind: bmp280
-#    name: keller_temperature
-#    i2c_bus: 1
-#    i2c_address: 0x77
-#    poll_interval_s: 300
-#    topic_id: 20
-
   - kind: aht20
     name: keller_humidity
     i2c_bus: 1
