@@ -219,7 +219,6 @@ sensors:
 #    ack_req: true
 
   # System-Status des Pi selbst (CPU/RAM/Temp/Uptime/WiFi-RSSI).
-  # Wird als einzelne Felder publisht (KEINE Gruppierung zu einem Sensor).
   - kind: system_status
     name: pi_system
     poll_interval_s: 300
