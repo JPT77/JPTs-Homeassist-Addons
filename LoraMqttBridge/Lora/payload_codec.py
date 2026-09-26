@@ -314,6 +314,7 @@ class PayloadCodec:
         for idx, field in enumerate(topic.fields):
             log.info(f"field {idx}: {field}")
             val = values.get(field.name)
+            log.info(f"val: {val}")
             if val is None and total_fields == 1 and len(values) == 1:
                 val = next(iter(values.values()))
             if val is None:
