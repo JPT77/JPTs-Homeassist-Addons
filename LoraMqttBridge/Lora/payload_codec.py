@@ -143,6 +143,7 @@ def eval_transform_expr(expr: str, data: Any) -> Any:
     # Try jq library if available
     try:
         from .mqtt_forwarder import _is_jq_expression, run_jq
+        log.info(f"JQ {expr_str}")
         if _is_jq_expression(expr_str):
             try:
                 return run_jq(expr_str, data)
@@ -373,6 +374,7 @@ class PayloadCodec:
         if topic.transform and topic.transform.mqtt2lora:
             values: dict[str, Any] = {}
             for field_name, expr in topic.transform.mqtt2lora.items():
+                log.info(f"field {field_name}, expr {expr}")
                 val = eval_transform_expr(expr, parsed_data)
                 if val is not None:
                     values[field_name] = val
