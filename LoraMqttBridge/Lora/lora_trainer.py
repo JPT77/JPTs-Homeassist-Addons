@@ -22,13 +22,22 @@ import argparse
 import itertools
 import json
 import logging
+import os
+import signal
 import statistics
 import sys
 import time
 from dataclasses import replace
+from pathlib import Path
+
+# Ensure Lora package can be imported regardless of execution directory
+_HERE = Path(__file__).resolve().parent
+if (_HERE / "config_loader.py").exists() and str(_HERE.parent) not in sys.path:
+    sys.path.insert(0, str(_HERE.parent))
+if "/app" not in sys.path and Path("/app").exists():
+    sys.path.insert(0, "/app")
 
 from Lora.config_loader import load, LoraConfig
-from Lora.lora_driver import LoraRadio, RxEvent
 from Lora.protocol import (
     Frame, FrameType, PROTOCOL_VERSION, build_ack, build_mqtt
 )
@@ -46,7 +55,7 @@ MAGIC = b"LT1"
 
 def make_control(seq: int, cfg: dict) -> bytes:
     body = MAGIC + json.dumps(cfg, separators=(",", ":")).encode()
-    return Frame(PROTOCOL_VERSION, FrameType.CONTROL, seq, CONTROL_TID, body).encode()
+    return Frame(PROTOCOL_VERSION, FrameType.CONTROL, seq, CONTROL_TID, body, ack_req=True).encode()
 
 
 def make_probe(seq: int, payload: bytes) -> bytes:
@@ -78,15 +87,19 @@ def build_lora_config(base: LoraConfig, sf: int, bw: int, cr: int, tx: int) -> L
     )
 
 
-def open_radio(cfg: LoraConfig) -> LoraRadio:
+def open_radio(cfg: LoraConfig, use_mock: bool = False) -> Any:
+    if use_mock:
+        from Lora.lora_mock import LoraRadio as MockLoraRadio
+        return MockLoraRadio(cfg)
+    from Lora.lora_driver import LoraRadio
     return LoraRadio(cfg)
 
 
 def test_combo(base: LoraConfig, combo: tuple[int,int,int,int], packets: int,
-               ack_timeout: float, warmup: float) -> dict:
+               ack_timeout: float, warmup: float, use_mock: bool = False) -> dict:
     sf, bw, cr, tx = combo
     cfg = build_lora_config(base, sf, bw, cr, tx)
-    radio = open_radio(cfg)
+    radio = open_radio(cfg, use_mock=use_mock)
     try:
         radio.open()
         time.sleep(warmup)
@@ -140,6 +153,11 @@ def rank_result(r: dict) -> tuple:
 def master(args: argparse.Namespace) -> int:
     cfg = load(args.config)
     base = cfg.lora
+    if getattr(args, "frequency", None):
+        base = replace(base, frequency_hz=int(args.frequency))
+
+    use_mock = getattr(args, "mock", False)
+    packets = getattr(args, "packets", 10)
 
     combinations = list(itertools.product(
         args.sf,
@@ -149,12 +167,12 @@ def master(args: argparse.Namespace) -> int:
     ))
 
     # Tell responder to switch before each RF test.
-    control_radio = open_radio(base)
+    control_radio = open_radio(base, use_mock=use_mock)
     results = []
 
     try:
         control_radio.open()
-        print(f"Testing {len(combinations)} combinations, {args.packets} packets each")
+        print(f"Testing {len(combinations)} combinations, {packets} packets each")
 
         for idx, combo in enumerate(combinations, 1):
             sf, bw, cr, tx = combo
@@ -163,7 +181,7 @@ def master(args: argparse.Namespace) -> int:
             seq = (200 + idx) & 0xFF
             control = make_control(seq, {
                 "sf": sf, "bw": bw, "cr": cr, "tx": tx,
-                "packets": args.packets,
+                "packets": packets,
             })
             if not control_radio.send(control):
                 print("  responder control TX failed")
@@ -178,8 +196,8 @@ def master(args: argparse.Namespace) -> int:
 
             # Re-open master radio with the new settings.
             control_radio.close()
-            result = test_combo(base, combo, args.packets, args.ack_timeout, args.warmup)
-            control_radio = open_radio(base)
+            result = test_combo(base, combo, packets, args.ack_timeout, args.warmup, use_mock=use_mock)
+            control_radio = open_radio(base, use_mock=use_mock)
             control_radio.open()
 
             print(
@@ -226,7 +244,8 @@ def master(args: argparse.Namespace) -> int:
 
 def responder(args: argparse.Namespace) -> int:
     cfg = load(args.config)
-    radio = open_radio(cfg.lora)
+    use_mock = getattr(args, "mock", False)
+    radio = open_radio(cfg.lora, use_mock=use_mock)
     radio.open()
     current = cfg.lora
     probes_left = 0
@@ -261,7 +280,7 @@ def responder(args: argparse.Namespace) -> int:
                 radio.send(build_ack(frame).encode())
 
                 radio.close()
-                radio = open_radio(newcfg)
+                radio = open_radio(newcfg, use_mock=use_mock)
                 radio.open()
                 current = newcfg
                 probes_left = packet_count
@@ -274,7 +293,7 @@ def responder(args: argparse.Namespace) -> int:
                     # Return to the stable/base channel so the master can
                     # issue the next CONTROL frame.
                     radio.close()
-                    radio = open_radio(cfg.lora)
+                    radio = open_radio(cfg.lora, use_mock=use_mock)
                     radio.open()
                     current = cfg.lora
     except KeyboardInterrupt:
@@ -283,30 +302,38 @@ def responder(args: argparse.Namespace) -> int:
         radio.close()
 
 
-def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="SX1262 LoRa parameter trainer")
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    p = argparse.ArgumentParser(description="SX1262 LoRa parameter trainer for HA-App and Pi nodes")
     sub = p.add_subparsers(dest="mode", required=True)
 
-    m = sub.add_parser("master")
-    m.add_argument("--config", default=None)
-    m.add_argument("--sf", nargs="+", type=int, default=[7,8,9,10,11,12])
-    m.add_argument("--bw", nargs="+", type=int, default=[125000,250000,500000])
-    m.add_argument("--cr", nargs="+", type=int, default=[5,6,7,8])
-    m.add_argument("--tx", nargs="+", type=int, default=[2,6,10,14,18,22])
-    m.add_argument("--packets", type=int, default=10)
-    m.add_argument("--target", type=float, default=99.0)
-    m.add_argument("--ack-timeout", type=float, default=3.0)
-    m.add_argument("--warmup", type=float, default=0.15)
-    m.add_argument("--json", action="store_true")
+    m = sub.add_parser("master", help="Actively test RF parameter combinations")
+    m.add_argument("--config", default=None, help="Path to config.yaml (default: auto-detect /data/options.json or local)")
+    m.add_argument("--sf", nargs="+", type=int, default=[7,8,9,10,11,12], help="Spreading factors (e.g. 7 8 9)")
+    m.add_argument("--bw", nargs="+", type=int, default=[125000,250000,500000], help="Bandwidths in Hz (e.g. 125000 250000)")
+    m.add_argument("--cr", nargs="+", type=int, default=[5,6,7,8], help="Coding rates (5=4/5, 6=4/6, etc.)")
+    m.add_argument("--tx", nargs="+", type=int, default=[2,6,10,14,18,22], help="TX power in dBm")
+    m.add_argument("--packets", "--tests", dest="packets", type=int, default=10, help="Number of probe packets per combination")
+    m.add_argument("--frequency", "--freq", dest="frequency", type=int, default=None, help="Override RF frequency in Hz")
+    m.add_argument("--target", type=float, default=99.0, help="Target success rate percentage")
+    m.add_argument("--ack-timeout", type=float, default=3.0, help="ACK timeout in seconds")
+    m.add_argument("--warmup", type=float, default=0.15, help="Warmup delay after parameter change in seconds")
+    m.add_argument("--mock", action="store_true", help="Use software mock radio instead of hardware")
+    m.add_argument("--json", action="store_true", help="Output results as JSON")
     m.set_defaults(func=master)
 
-    r = sub.add_parser("responder")
-    r.add_argument("--config", default=None)
+    r = sub.add_parser("responder", help="Listen for CONTROL frames and ACK probes")
+    r.add_argument("--config", default=None, help="Path to config.yaml (default: auto-detect /data/options.json or local)")
+    r.add_argument("--mock", action="store_true", help="Use software mock radio instead of hardware")
     r.set_defaults(func=responder)
-    return p.parse_args()
+
+    return p.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    args = parse_args(argv)
+    return args.func(args)
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    args = parse_args()
-    sys.exit(args.func(args))
+    sys.exit(main())
