@@ -272,16 +272,37 @@ def _eval_python_fallback(expr: str, data: Any) -> Any:
         except (ValueError, TypeError):
             return data
 
-    # 5. Literal number
-    try:
-        if "." in expr_str:
-            return float(expr_str)
-        return int(expr_str)
-    except ValueError:
-        pass
+    # 5. Literal booleans / null
+    if expr_str == "true":
+        return True
+    if expr_str == "false":
+        return False
+    if expr_str == "null":
+        return None
 
-    # 6. Dot path lookup (e.g. .Wifi.Signal, .Time, .uptime)
-    return extract_query(data, expr_str)
+    # 6. Literal number (only if not a dot path)
+    if not expr_str.startswith("."):
+        try:
+            if "." in expr_str:
+                return float(expr_str)
+            return int(expr_str)
+        except ValueError:
+            pass
+
+    # 7. Quoted literal string (e.g. '"grid_on"' or "'grid_on'")
+    if (expr_str.startswith('"') and expr_str.endswith('"')) or (expr_str.startswith("'") and expr_str.endswith("'")):
+        if len(expr_str) >= 2:
+            return expr_str[1:-1]
+
+    # 8. Dot path lookup (e.g. .Wifi.Signal, .Time, .uptime, .grid[0].etin)
+    if expr_str.startswith("."):
+        return extract_query(data, expr_str)
+
+    # 9. Key in dict or unquoted literal string (e.g. "grid_on")
+    if isinstance(data, dict) and expr_str in data:
+        return data[expr_str]
+
+    return expr_str
 
 
 # ---------------------------------------------------------------------------
