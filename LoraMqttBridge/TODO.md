@@ -5,5 +5,6 @@
 - enable messages in HA-MQTT
 - write LORA training app
 - cleanup code
+- estimate air time
 
 - test for real
