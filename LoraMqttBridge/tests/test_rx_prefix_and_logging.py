@@ -150,6 +150,63 @@ class RxPrefixAndLoggingTests(unittest.TestCase):
         log_output = "\n".join(log_cm.output)
         self.assertIn("mqtt_output 'battery_power_control' -> TEST/homeassistant/number/power_ctrl/set", log_output)
 
+    def test_decode_topic_31_literal_strings(self) -> None:
+        """Verify that literal strings such as `type: 'grid_on'` in lora2mqtt are preserved."""
+        from Lora.payload_codec import PayloadCodec
+        from Lora.config_loader import TopicTransform
+
+        topic31 = TopicMap(
+            id=31,
+            name="battery_energy",
+            mqtt_topic="homeassistant/sensor/MSA-280425440006/device/state",
+            direction="from_node",
+            fields=[
+                FieldSpec(name="timestamp", type="uint32"),
+                FieldSpec(name="etin", type="int32"),
+                FieldSpec(name="etout", type="int32"),
+                FieldSpec(name="bat_v", type="uint8"),
+                FieldSpec(name="bat_temp", type="int8"),
+                FieldSpec(name="soc", type="uint8"),
+                FieldSpec(name="rssi", type="int8"),
+            ],
+            transform=TopicTransform(
+                lora2mqtt={
+                    "time": ".timestamp | from_lora_time",
+                    "grid": [
+                        {
+                            "type": "grid_on",
+                            "etin": ".etin",
+                            "etout": ".etout",
+                        }
+                    ],
+                    "bat_v": ".bat_v / 10",
+                    "bat_temp": ".bat_temp",
+                    "soc": ".soc",
+                    "rssi": ".rssi",
+                }
+            ),
+        )
+
+        codec = PayloadCodec()
+        # Pack binary frame for: timestamp=100 (2020-01-01T00:01:40Z), etin=1234, etout=5678, bat_v=52, bat_temp=25, soc=90, rssi=-65
+        import struct
+        raw_bytes = struct.pack("<IiiBbBb", 100, 1234, 5678, 52, 25, 90, -65)
+
+        decoded_json_bytes = codec.decode(topic31, raw_bytes)
+        result = json.loads(decoded_json_bytes.decode("utf-8"))
+
+        self.assertIn("grid", result)
+        self.assertIsInstance(result["grid"], list)
+        self.assertEqual(len(result["grid"]), 1)
+        self.assertEqual(result["grid"][0]["type"], "grid_on")
+        self.assertEqual(result["grid"][0]["etin"], 1234)
+        self.assertEqual(result["grid"][0]["etout"], 5678)
+        self.assertEqual(result["bat_v"], 5.2)
+        self.assertEqual(result["bat_temp"], 25)
+        self.assertEqual(result["soc"], 90)
+        self.assertEqual(result["rssi"], -65)
+        self.assertIn("2020-01-01", result["time"])
+
 
 if __name__ == "__main__":
     unittest.main()
