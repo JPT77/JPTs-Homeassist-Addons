@@ -184,7 +184,7 @@ topics:
             soc: ".soc |round"
             rssi: ".rssi"
         lora2mqtt:
-            time: ".timestamp | from_lora_time"
+            Time: ".timestamp | from_lora_time"
             grid:
               - type: "grid_on"
                 etin: ".etin"
