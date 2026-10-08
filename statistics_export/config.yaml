@@ -1,5 +1,5 @@
 name: JPT's Statistics Export
-version: "1.4.0"
+version: "1.4.1"
 slug: statistics_export
 description: Export Home Assistant statistics to parquet
 url: "https://github.com/JPT77/JPTs-Homeassist-Addons/tree/main/statistics_export"
@@ -11,8 +11,6 @@ boot: auto
 arch:
   - amd64
   - aarch64
-  - armhf
-  - armv7
 
 map:
   - type: homeassistant_config
