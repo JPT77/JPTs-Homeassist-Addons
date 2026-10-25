@@ -25,18 +25,23 @@ for path in ["/config", "/homeassistant", "/share", "/data"]:
         f"readable={os.access(path, os.R_OK)}"
     )
 
+def connect_database():
+    return sqlite3.connect(
+        f"file:{DB}?mode=ro",
+        uri=True,
+        timeout=30
+    )
+
 def wait_for_database(timeout=300, interval=5):
     start = time.monotonic()
 
     while time.monotonic() - start < timeout:
         if os.path.isfile(DB):
             try:
-                conn = sqlite3.connect(
-                    f"file:{DB}?mode=ro",
-                    uri=True,
-                    timeout=5
-                )
-                conn.execute("SELECT 1").fetchone()
+                conn = connect_database()
+                conn.execute(
+                    "SELECT MIN(start_ts) FROM statistics_short_term"
+                ).fetchone()
                 conn.close()
 
                 log("Database is accessible.")
@@ -58,7 +63,7 @@ def export_missing_days():
 
     exported = 0
 
-    conn = sqlite3.connect(DB)
+    conn = connect_database()
 
     row = conn.execute(
         "SELECT MIN(start_ts), MAX(start_ts) FROM statistics_short_term"

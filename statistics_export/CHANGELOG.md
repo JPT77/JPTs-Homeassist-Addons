@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.3
+
+* improve check for database
+
 ## 1.4.2
 
 * wait for database to be ready after boot
