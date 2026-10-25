@@ -25,6 +25,33 @@ for path in ["/config", "/homeassistant", "/share", "/data"]:
         f"readable={os.access(path, os.R_OK)}"
     )
 
+def wait_for_database(timeout=300, interval=5):
+    start = time.monotonic()
+
+    while time.monotonic() - start < timeout:
+        if os.path.isfile(DB):
+            try:
+                conn = sqlite3.connect(
+                    f"file:{DB}?mode=ro",
+                    uri=True,
+                    timeout=5
+                )
+                conn.execute("SELECT 1").fetchone()
+                conn.close()
+
+                log("Database is accessible.")
+                return True
+
+            except sqlite3.Error as e:
+                log(f"Database not ready yet: {e}")
+
+        else:
+            log(f"Database not found yet: {DB}")
+
+        time.sleep(interval)
+
+    return False
+
 def export_missing_days():
 
     log("Checking for missing exports...")
@@ -164,6 +191,11 @@ def export_day(day):
 
     log(f"Successfully exported {len(df)} rows to {filename}")
     return True
+
+
+if not wait_for_database():
+    log("Database unavailable after 5 minutes. Exiting.")
+    raise SystemExit(1)
 
 export_missing_days()
 

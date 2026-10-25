@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.2
+
+* wait for database to be ready after boot
+
+## 1.4.1
+
+* removed deprecated arch entries
+
 ## 1.4.0
 
 * automaticall find database
